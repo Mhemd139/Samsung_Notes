@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { unzipSync } from "fflate";
+import { unzipSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { inspectNote } from "../src/sdocx.js";
 import { isAttachmentEntry, isMediaEntry, listZipAttachments, readZipAttachment, stripMedia, zipNoteFolder } from "../src/zip.js";
@@ -57,6 +57,21 @@ describe("zip attachments", () => {
     const png = readZipAttachment(note, "0@paste_260914_153237_553.png");
     expect(png && [...png.slice(0, 4)]).toEqual([0x89, 0x50, 0x4e, 0x47]);
     expect(readZipAttachment(note, "missing.png")).toBeUndefined();
+  });
+
+  it("does not serve Samsung-internal media as attachments", () => {
+    expect(readZipAttachment(note, "mediaInfo.dat")).toBeUndefined();
+    expect(readZipAttachment(fixtureBytes("02-shapes-and-dot-calibration.sdocx"), "0@page_0000001.spi")).toBeUndefined();
+  });
+
+  it("ignores directory entries", () => {
+    const zip = zipSync({
+      "media/": new Uint8Array(0),
+      "media/mediaInfo.dat": new Uint8Array([1]),
+      "media/a.png": new Uint8Array([2, 3]),
+    });
+    expect(listZipAttachments(zip)).toEqual([{ name: "a.png", size: 2 }]);
+    expect(readZipAttachment(zip, "")).toBeUndefined();
   });
 
   it("strips media but keeps the text identical", () => {

@@ -8,7 +8,8 @@ const INTERNAL_MEDIA = /\.spi$/i;
 
 export const isMediaEntry = (name: string): boolean => name.startsWith(MEDIA_DIR) && name !== MEDIA_INDEX;
 
-export const isAttachmentEntry = (name: string): boolean => isMediaEntry(name) && !INTERNAL_MEDIA.test(name);
+export const isAttachmentEntry = (name: string): boolean =>
+  isMediaEntry(name) && !name.endsWith("/") && !INTERNAL_MEDIA.test(name);
 
 export async function zipNoteFolder(dir: string, includeMedia: boolean): Promise<Uint8Array> {
   const entries: Record<string, Uint8Array> = {};
@@ -40,5 +41,6 @@ export function listZipAttachments(sdocx: Uint8Array): { name: string; size: num
 
 export function readZipAttachment(sdocx: Uint8Array, file: string): Uint8Array | undefined {
   const name = MEDIA_DIR + file;
+  if (!isAttachmentEntry(name)) return undefined;
   return unzipSync(sdocx, { filter: (entry) => entry.name === name })[name];
 }

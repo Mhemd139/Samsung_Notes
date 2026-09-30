@@ -45,6 +45,10 @@ describe("exportsFolderSource", () => {
     await expect(note.readAttachment("../../secret.txt")).rejects.toThrow("no attachment named “../../secret.txt”");
   });
 
+  it("refuses the note's internal media files", async () => {
+    await expect((await receipt()).readAttachment("mediaInfo.dat")).rejects.toThrow("no attachment named");
+  });
+
   it("gives lean bytes smaller than the full note", async () => {
     const note = await receipt();
     expect((await note.leanBytes()).length).toBeLessThan((await note.fullBytes()).length);
