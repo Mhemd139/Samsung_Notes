@@ -37,7 +37,16 @@ export function windowsAppSource(localState: string): NoteSource {
         const indexed = index.get(entry.name);
         if (indexed?.deleted) continue;
         const dir = join(wdoc, entry.name);
-        notes.push(windowsNote(entry.name, dir, await folderStamp(dir), indexed));
+        let stamp: string;
+        try {
+          stamp = JSON.stringify([await folderStamp(dir), indexed?.folder, indexed?.locked, indexed?.title]);
+        } catch (err) {
+          warnings.push(
+            `Couldn't read the note “${indexed?.title || entry.name}” (${describeError(err)}). It is skipped for now and tried again on the next request.`,
+          );
+          continue;
+        }
+        notes.push(windowsNote(entry.name, dir, stamp, indexed));
       }
       return { notes, warnings };
     },

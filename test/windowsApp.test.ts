@@ -1,6 +1,7 @@
-import { rmSync, utimesSync } from "node:fs";
+import { readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { unzipSync } from "fflate";
+import initSqlJs from "sql.js";
 import { beforeEach, describe, expect, it } from "vitest";
 import { windowsAppSource } from "../src/sources/windowsApp.js";
 import { tempDir } from "./helpers.js";
@@ -27,6 +28,15 @@ beforeEach(async () => {
 
 const listing = () => windowsAppSource(localState).listNotes();
 const note = async (id: string) => (await listing()).notes.find((n) => n.id === id)!;
+
+async function editIndex(sql: string): Promise<void> {
+  const path = join(localState, "Storage.sqlite");
+  const SQL = await initSqlJs();
+  const db = new SQL.Database(readFileSync(path));
+  db.run(sql);
+  writeFileSync(path, db.export());
+  db.close();
+}
 
 describe("windowsAppSource", () => {
   it("lists notes on disk except the recycle bin", async () => {
@@ -75,6 +85,26 @@ describe("windowsAppSource", () => {
     const later = new Date(Date.now() + 60_000);
     utimesSync(join(localState, "wdoc", "bbbb", "note.note"), later, later);
     expect((await note("bbbb")).stamp).not.toBe(before);
+  });
+
+  it("changes the stamp when only the index changes", async () => {
+    const before = (await note("bbbb")).stamp;
+    await editIndex("UPDATE NoteDB SET CategoryUUID = 'inv' WHERE UUID = 'bbbb'");
+    const moved = (await note("bbbb")).stamp;
+    await editIndex("UPDATE NoteDB SET IsLocked = 1 WHERE UUID = 'bbbb'");
+    const locked = (await note("bbbb")).stamp;
+    await editIndex("UPDATE NoteDB SET Title = 'Renamed' WHERE UUID = 'bbbb'");
+    const renamed = (await note("bbbb")).stamp;
+    expect(new Set([before, moved, locked, renamed]).size).toBe(4);
+  });
+
+  it("changes the stamp once an unreadable index recovers", async () => {
+    const path = join(localState, "Storage.sqlite");
+    const index = readFileSync(path);
+    rmSync(path);
+    const withoutIndex = (await note("aaaa")).stamp;
+    writeFileSync(path, index);
+    expect((await note("aaaa")).stamp).not.toBe(withoutIndex);
   });
 
   it("still lists notes with a warning when the index is unreadable", async () => {
