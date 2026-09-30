@@ -31,12 +31,17 @@ export interface TitleParts {
 
 export function buildNoteText(rawText: string, spans: TextSpan[], attachmentFiles: string[]): string {
   let text = rawText;
+  const misplaced: string[] = [];
   for (const span of [...spans].sort((a, b) => b.text_index_utf16 - a.text_index_utf16)) {
     const at = span.text_index_utf16;
-    if (text[at] !== OBJECT_CHAR) continue;
-    text = text.slice(0, at) + renderSpan(span, attachmentFiles) + text.slice(at + 1);
+    const rendered = renderSpan(span, attachmentFiles);
+    if (text[at] === OBJECT_CHAR) {
+      text = text.slice(0, at) + rendered + text.slice(at + 1);
+    } else {
+      misplaced.unshift(rendered);
+    }
   }
-  return decodeEntities(text.replaceAll(OBJECT_CHAR, ""))
+  return decodeEntities([text, ...misplaced].join("\n").replaceAll(OBJECT_CHAR, ""))
     .replace(/[ \t]+$/gm, "")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
@@ -97,5 +102,7 @@ const firstLine = (text: string): string =>
     .map((line) => line.trim())
     .find((line) => /[\p{L}\p{N}]/u.test(line) && !/^(\[image|\||```)/.test(line)) ?? "";
 
-const truncate = (value: string): string =>
-  value.length > MAX_TITLE_LENGTH ? `${value.slice(0, MAX_TITLE_LENGTH - 1)}…` : value;
+const truncate = (value: string): string => {
+  const chars = Array.from(value);
+  return chars.length > MAX_TITLE_LENGTH ? `${chars.slice(0, MAX_TITLE_LENGTH - 1).join("")}…` : value;
+};

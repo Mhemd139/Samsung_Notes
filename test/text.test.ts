@@ -8,6 +8,12 @@ const textOf = (name: string, files: string[] = []) => {
   return buildNoteText(note.rawText, note.spans, files);
 };
 
+const tableAt = (index: number, ...rows: string[]) => ({
+  object_type: "Table",
+  text_index_utf16: index,
+  content: { Table: { rows: rows.map((text) => ({ cells: [{ content: { text } }] })) } },
+});
+
 describe("buildNoteText", () => {
   it("puts tables in place as markdown", () => {
     const text = textOf("01-basic-formatting.sdocx");
@@ -33,6 +39,17 @@ describe("buildNoteText", () => {
   it("names objects it can't render", () => {
     const span = { object_type: "Voice", text_index_utf16: 0, content: { Voice: {} } };
     expect(buildNoteText("￼", [span], [])).toBe("[Voice]");
+  });
+
+  it("appends an object whose index misses its marker instead of dropping it", () => {
+    const text = buildNoteText("one two", [tableAt(4, "Col", "val")], []);
+    expect(text).toBe("one two\n\n| Col |\n| --- |\n| val |");
+  });
+
+  it("appends several misplaced objects in note order", () => {
+    const voice = { object_type: "Voice", text_index_utf16: 99, content: { Voice: {} } };
+    const text = buildNoteText("one two", [voice, tableAt(4, "Col")], []);
+    expect(text).toBe("one two\n\n| Col |\n| --- |\n\n[Voice]");
   });
 
   it("decodes HTML entities in one pass", () => {
@@ -72,6 +89,12 @@ describe("noteTitle", () => {
     const title = noteTitle({ ...base, text: "x".repeat(200) });
     expect(title).toHaveLength(80);
     expect(title.endsWith("…")).toBe(true);
+  });
+
+  it("cuts titles on code points, never inside an emoji", () => {
+    const title = noteTitle({ ...base, text: `${"x".repeat(78)}😀${"x".repeat(50)}` });
+    expect(title).not.toMatch(/[\uD800-\uDFFF]/u);
+    expect(title).toBe(`${"x".repeat(78)}😀…`);
   });
 });
 
