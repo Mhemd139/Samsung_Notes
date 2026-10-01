@@ -51,7 +51,7 @@ async function renderJpeg(page: PDFiumPage, number: number, part: number): Promi
   const { originalWidth, originalHeight } = page.getOriginalSize();
   const height = Math.round((IMAGE_WIDTH * originalHeight) / originalWidth);
   const parts = attachmentParts(IMAGE_WIDTH, height);
-  if (part > parts) throw new NoteError(`Page ${number} has ${parts} part${parts === 1 ? "" : "s"}.`);
+  if (part > parts) throw new NoteError(`Page ${number} has ${parts} part${parts === 1 ? "" : "s"}. Use part with one page at a time: pages=[N].`);
   const band = partBand(IMAGE_WIDTH, height, part, parts);
   const { data } = await page.render({
     width: IMAGE_WIDTH,

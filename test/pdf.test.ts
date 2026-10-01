@@ -39,6 +39,16 @@ describe("readPdf", () => {
     expect(image.data[at]).toBeLessThan(60);
   });
 
+  it("cuts parts on whole pixel rows", async () => {
+    const strip = makePdf([{ width: 100, height: 777, content: "0 0 1 rg 0 0 10 777 re f" }]);
+    for (const part of [2, 3, 4, 5]) {
+      const [page] = (await readPdf(strip, [1], false, PDF_BUDGET_BYTES, part)).pages;
+      const { width, data } = jpeg.decode(page!.image!);
+      const blueAt = (x: number) => data[(900 * width + x) * 4 + 2]! > 200 && data[(900 * width + x) * 4]! < 60;
+      expect([blueAt(60), blueAt(1100)]).toEqual([true, false]);
+    }
+  });
+
   it("explains a part out of range", async () => {
     await expect(readPdf(makePdf([TALL_PAGE]), [1], false, PDF_BUDGET_BYTES, 7)).rejects.toThrow("Page 1 has 6 parts.");
   });

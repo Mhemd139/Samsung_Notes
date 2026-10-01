@@ -372,13 +372,15 @@ describe("get_attachment", () => {
       expect(second.text).toContain("--- Page 1 (part 2 of 6; call again with pages=[1] and part=3 for the next) ---");
       const beyond = await call("get_attachment", { id: "file:Shop.sdocx", file: RECEIPT, pages: [1], part: 7 }, tall);
       expect(beyond.isError).toBe(true);
-      expect(beyond.text).toBe("Page 1 has 6 parts.");
+      expect(beyond.text).toBe("Page 1 has 6 parts. Use part with one page at a time: pages=[N].");
     });
 
-    it("tells the agent that parts overlap and to read them all before taking figures", () => {
-      const instructions = tall.getInstructions() ?? "";
-      expect(instructions).toContain("overlapping parts");
-      expect(instructions).toContain("Read every part before taking figures");
+    it("tells the agent that parts overlap, to read them all and to count a repeated line once", async () => {
+      expect(tall.getInstructions()).toContain("Read every part before taking figures, and count a repeated line once.");
+      const { tools } = await tall.listTools();
+      for (const name of ["get_page_image", "get_attachment"]) {
+        expect(tools.find((tool) => tool.name === name)?.description).toContain("count a repeated line once");
+      }
     });
   });
 

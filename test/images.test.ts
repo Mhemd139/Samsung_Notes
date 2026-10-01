@@ -3,6 +3,7 @@ import { decode, encode } from "fast-png";
 import jpeg from "jpeg-js";
 import { describe, expect, it } from "vitest";
 import {
+  attachmentParts,
   IMAGE_WIDTH,
   imageForClaude,
   imageParts,
@@ -127,11 +128,23 @@ describe("tall pages", () => {
     expect(pixel(last, 600, 1700)).toEqual([0, 0, 255]);
   });
 
-  it("overlaps parts so a line on a cut shows whole in one of them, with no sliver at the end", () => {
-    const bands = [1, 2, 3, 4].map((part) => partBand(1080, 5400, part, 4));
-    for (const band of bands) expect(band.height).toBe(1620);
-    for (let i = 1; i < bands.length; i++) expect(bands[i - 1]!.top + 1620 - bands[i]!.top).toBeGreaterThanOrEqual(108);
-    expect(bands[3]!.top + 1620).toBe(5400);
+  it.each<[string, number, number, (width: number, height: number) => number, number]>([
+    ["a page just over 1.66:1", 1000, 1661, (width, height) => pageParts(tallSvg(width, height)), 2],
+    ["a photo just over 2.5:1", 1000, 2501, attachmentParts, 2],
+    ["a photo one pixel over 1568 px", 600, 1569, attachmentParts, 2],
+    ["the tallest photo two parts cover", 1000, 2900, attachmentParts, 2],
+    ["a photo one pixel taller", 1000, 2901, attachmentParts, 3],
+    ["a scroll screenshot", 1080, 5400, attachmentParts, 4],
+  ])("cuts %s into full-size parts that overlap by at least a tenth of the width", (_, width, height, count, expected) => {
+    const parts = count(width, height);
+    expect(parts).toBe(expected);
+    const bands = Array.from({ length: parts }, (_, i) => partBand(width, height, i + 1, parts));
+    expect(bands[0]!.top).toBe(0);
+    expect(bands[parts - 1]!.top + bands[parts - 1]!.height).toBeCloseTo(height, 9);
+    for (const band of bands) expect(band.height).toBe(width * 1.5);
+    for (let i = 1; i < parts; i++) {
+      expect(bands[i - 1]!.top + bands[i - 1]!.height - bands[i]!.top).toBeGreaterThanOrEqual(width * 0.1 - 1e-9);
+    }
   });
 
   it("treats SVG without a viewBox as one part", () => {
