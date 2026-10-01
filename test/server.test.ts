@@ -124,6 +124,13 @@ describe("list_notes", () => {
     expect(data.hint).toMatch(/Handwriting isn't searchable/);
   });
 
+  it("sends an empty library to notes_overview instead of blaming the filters", async () => {
+    const empty = await connect(new Catalog(() => ({ sources: [], problems: [] })));
+    const data = JSON.parse((await call("list_notes", { query: "invoice" }, empty)).text);
+    expect(data.total).toBe(0);
+    expect(data.hint).toBe("No notes are available yet. Call notes_overview: it says where notes come from and how to set them up.");
+  });
+
   it("rejects impossible dates", async () => {
     const result = await call("list_notes", { modified_after: "2026-02-30" });
     expect(result.isError).toBe(true);

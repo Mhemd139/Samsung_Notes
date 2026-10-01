@@ -20,6 +20,9 @@ const DEFAULT_PDF_PAGES = 5;
 const MAX_PDF_PAGES = 20;
 const MAX_TEXT_CHARS = 100_000;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
+const NO_NOTES_HINT = "No notes are available yet. Call notes_overview: it says where notes come from and how to set them up.";
+const NO_MATCH_HINT =
+  "No notes matched. Handwriting isn't searchable: try a folder, dates or has_handwriting=true instead, then open pages with get_page_image.";
 
 const INSTRUCTIONS = [
   "Read-only access to the user's Samsung Notes: typed text, tables, handwritten pages, and attached photos and PDFs. Nothing here can change a note.",
@@ -119,10 +122,7 @@ export function createServer(catalog: Catalog): McpServer {
                 total: result.total,
                 offset: args.offset,
                 next_offset: shown < result.total ? shown : undefined,
-                hint:
-                  result.total === 0
-                    ? "No notes matched. Handwriting isn't searchable: try a folder, dates or has_handwriting=true instead, then open pages with get_page_image."
-                    : undefined,
+                hint: result.total === 0 ? emptyResultHint(catalog) : undefined,
                 notes: result.notes.map((note) => ({
                   id: note.id,
                   title: note.title,
@@ -248,6 +248,8 @@ function formatOverview(overview: Overview): string {
   if (overview.problems.length) lines.push("", "Problems:", ...overview.problems.map((problem) => `- ${problem}`));
   return lines.join("\n");
 }
+
+const emptyResultHint = (catalog: Catalog): string => (catalog.overview().totals.notes === 0 ? NO_NOTES_HINT : NO_MATCH_HINT);
 
 function formatNote(entry: NoteEntry): string {
   const facts = [
