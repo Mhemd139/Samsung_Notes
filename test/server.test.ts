@@ -73,6 +73,10 @@ describe("instructions", () => {
     expect(properties.modified_before!.description).toContain("last edit");
   });
 
+  it("tell the agent to read page 1 first when it only needs a PDF's date, vendor or total", () => {
+    expect(client.getInstructions()).toMatch(/date, vendor or total.*pages=\[1\] first/);
+  });
+
   it("tell the agent to check before saving, never to guess a name, and what to report", () => {
     const instructions = client.getInstructions() ?? "";
     expect(instructions).toContain("Nothing here can change a note");
