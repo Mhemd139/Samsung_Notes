@@ -1,11 +1,16 @@
 // Builds samsung-notes-mcp-<version>.mcpb with native resvg binaries for every Claude Desktop platform.
-import { execSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { Resvg } from "@resvg/resvg-js";
 
 const RESVG_PLATFORMS = ["win32-x64-msvc", "win32-arm64-msvc", "darwin-x64", "darwin-arm64"];
 const STAGE = "build/mcpb";
 const NATIVE = "build/native";
+const USED_FILES = {
+  "sql.js/dist": ["sql-wasm.js", "sql-wasm.wasm"],
+  "@hyzyla/pdfium/dist": ["index.esm.js", "pdfium.wasm"],
+};
+const LOAD_CHECK = `import initSqlJs from "sql.js"; import { PDFiumLibrary } from "@hyzyla/pdfium"; await initSqlJs(); (await PDFiumLibrary.init()).destroy();`;
 
 const run = (command, cwd = ".") => execSync(command, { cwd, stdio: "inherit" });
 const pkg = JSON.parse(readFileSync("package.json", "utf8"));
@@ -19,6 +24,13 @@ for (const path of ["dist", "package.json", "package-lock.json", "manifest.json"
 }
 writeFileSync(`${STAGE}/icon.png`, new Resvg(readFileSync("assets/icon.svg", "utf8"), { fitTo: { mode: "width", value: 512 } }).render().asPng());
 run("npm ci --omit=dev --omit=optional --ignore-scripts", STAGE);
+// sql.js and pdfium ship browser, worker, debug and asm.js builds the server never loads; they would double the download.
+for (const [dir, keep] of Object.entries(USED_FILES)) {
+  for (const file of readdirSync(`${STAGE}/node_modules/${dir}`)) {
+    if (!keep.includes(file)) rmSync(`${STAGE}/node_modules/${dir}/${file}`, { recursive: true });
+  }
+}
+execFileSync(process.execPath, ["--input-type=module", "-e", LOAD_CHECK], { cwd: STAGE, stdio: "inherit" });
 // npm skips other platforms' binaries inside the stage even with --force, so fetch them in a scratch folder and copy them in.
 run(`npm install --prefix ${NATIVE} --no-save --force --ignore-scripts ${RESVG_PLATFORMS.map((p) => `@resvg/resvg-js-${p}@${resvgVersion}`).join(" ")}`);
 cpSync(`${NATIVE}/node_modules/@resvg`, `${STAGE}/node_modules/@resvg`, { recursive: true });
