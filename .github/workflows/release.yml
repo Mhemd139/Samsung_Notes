@@ -24,7 +24,7 @@ jobs:
       - uses: actions/attest@v4
         with:
           subject-path: samsung-notes-mcp.mcpb
-      - uses: softprops/action-gh-release@v2
+      - uses: softprops/action-gh-release@v3
         with:
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
