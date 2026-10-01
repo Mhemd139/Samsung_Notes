@@ -1,6 +1,6 @@
 // Builds samsung-notes-mcp-<version>.mcpb with native resvg binaries for every Claude Desktop platform.
 import { execSync } from "node:child_process";
-import { cpSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { Resvg } from "@resvg/resvg-js";
 
 const RESVG_PLATFORMS = ["win32-x64-msvc", "win32-arm64-msvc", "darwin-x64", "darwin-arm64"];
@@ -22,5 +22,13 @@ run("npm ci --omit=dev --omit=optional --ignore-scripts", STAGE);
 // npm skips other platforms' binaries inside the stage even with --force, so fetch them in a scratch folder and copy them in.
 run(`npm install --prefix ${NATIVE} --no-save --force --ignore-scripts ${RESVG_PLATFORMS.map((p) => `@resvg/resvg-js-${p}@${resvgVersion}`).join(" ")}`);
 cpSync(`${NATIVE}/node_modules/@resvg`, `${STAGE}/node_modules/@resvg`, { recursive: true });
+const missing = RESVG_PLATFORMS.filter((p) => {
+  const dir = `${STAGE}/node_modules/@resvg/resvg-js-${p}`;
+  return !existsSync(dir) || !readdirSync(dir).some((file) => file.endsWith(".node"));
+});
+if (missing.length > 0) {
+  console.error(`The bundle has no resvg binary for ${missing.join(", ")}. The extension would not start on those platforms.`);
+  process.exit(1);
+}
 run("npx --yes @anthropic-ai/mcpb@2.1.2 validate manifest.json", STAGE);
 run(`npx --yes @anthropic-ai/mcpb@2.1.2 pack . ../../samsung-notes-mcp-${pkg.version}.mcpb`, STAGE);
