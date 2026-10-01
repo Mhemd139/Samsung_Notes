@@ -9,7 +9,7 @@ import { imageSize } from "../src/images.js";
 import { createServer, TOOL_NAMES } from "../src/server.js";
 import { exportsFolderSource } from "../src/sources/exportsFolder.js";
 import { windowsAppSource } from "../src/sources/windowsApp.js";
-import { fixtureBytes, fixturePath, tempDir, withoutDates } from "./helpers.js";
+import { fixtureBytes, fixturePath, rezipFixture, tempDir, withoutDates } from "./helpers.js";
 import { BLUE_SQUARE_PAGE, makePdf, TEXT_PAGE } from "./pdfFixture.js";
 import { makeLocalState } from "./windowsFixture.js";
 
@@ -209,6 +209,67 @@ describe("read_note", () => {
     expect(result.isError).toBe(true);
     expect(result.text).toMatch(/Use list_notes/);
   });
+
+  it("leaves the page count out of a locked note", async () => {
+    const localState = await makeLocalState(
+      tempDir("sn-server-locked"),
+      [{ uuid: "lock", fixture: "03-image-placement.sdocx", locked: true, title: "Bank" }],
+      [],
+    );
+    const windows = await connect(new Catalog(() => ({ sources: [windowsAppSource(localState)], problems: [] })));
+    const { text } = await call("read_note", { id: "lock" }, windows);
+    expect(text).toContain("This note is locked in Samsung Notes.");
+    expect(text).not.toContain("Pages:");
+  });
+});
+
+describe("read_note on a note without typed text", () => {
+  const MARKER = "04-marker4-highlighter.sdocx";
+  const SPACES = "    ";
+  let blank: Client;
+
+  const blankText = (files: Record<string, Uint8Array>) => {
+    const note = Buffer.from(files["note.note"]!);
+    note.write(SPACES, note.indexOf(Buffer.from("Text", "utf16le")), "utf16le");
+    files["note.note"] = note;
+  };
+  const blankInk = (files: Record<string, Uint8Array>) => {
+    const [inked, empty] = Object.keys(files).filter((name) => name.endsWith(".page")).sort((a, b) => files[b]!.length - files[a]!.length);
+    files[inked!] = files[empty!]!;
+  };
+  const lastLine = async (id: string) => (await call("read_note", { id }, blank)).text.split("\n").at(-1);
+
+  beforeAll(async () => {
+    const root = tempDir("sn-server-blank");
+    writeFileSync(
+      join(root, "invoice.sdocx"),
+      rezipFixture(MARKER, (files) => {
+        blankText(files);
+        files["media/0@invoice.jpg"] = new TextEncoder().encode("photo");
+      }),
+    );
+    writeFileSync(join(root, "sketch.sdocx"), rezipFixture(MARKER, blankText));
+    writeFileSync(
+      join(root, "empty.sdocx"),
+      rezipFixture(MARKER, (files) => {
+        blankText(files);
+        blankInk(files);
+      }),
+    );
+    blank = await connect(new Catalog(() => ({ sources: [exportsFolderSource(root)], problems: [] })));
+  });
+
+  it("sends a note with attachments to get_attachment, even when it also has handwriting", async () => {
+    expect(await lastLine("file:invoice.sdocx")).toBe("(No typed text. Its content is in the attachments above: open them with get_attachment.)");
+  });
+
+  it("sends a note with only handwriting to its pages", async () => {
+    expect(await lastLine("file:sketch.sdocx")).toBe("(No typed text. See the pages listed above with get_page_image.)");
+  });
+
+  it("just says so when there is nothing else", async () => {
+    expect(await lastLine("file:empty.sdocx")).toBe("(No typed text.)");
+  });
 });
 
 describe("get_page_image", () => {
@@ -291,6 +352,12 @@ describe("get_attachment", () => {
       expect((await call("read_note", { id: "file:Scan.sdocx" }, unreadable)).text).toContain("Couldn't read this note");
       const { content } = await call("get_attachment", { id: "file:Scan.sdocx", file: PHOTO }, unreadable);
       expect(content.find((b) => b.type === "image")?.mimeType).toBe("image/png");
+    });
+
+    it("leaves the page count out of its header", async () => {
+      const { text } = await call("read_note", { id: "file:Scan.sdocx" }, unreadable);
+      expect(text).toContain("Couldn't read this note");
+      expect(text).not.toContain("Pages:");
     });
 
     it("says which file types it can open", async () => {

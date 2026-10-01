@@ -262,7 +262,7 @@ function formatNote(entry: NoteEntry): string {
     `Folder: ${entry.folder || NO_FOLDER}`,
     entry.createdMs === null ? undefined : `Created: ${formatDateTime(entry.createdMs)}`,
     entry.modifiedMs === null ? undefined : `Modified: ${formatDateTime(entry.modifiedMs)}`,
-    `Pages: ${entry.pageCount}`,
+    entry.problem ? undefined : `Pages: ${entry.pageCount}`,
   ].filter(Boolean);
   const lines = [`# ${entry.title}`, facts.join(" · ")];
   if (entry.inkPages.length) {
@@ -274,10 +274,13 @@ function formatNote(entry: NoteEntry): string {
     lines.push(`Attachments (open with get_attachment): ${list}`);
   }
   if (entry.problem) return [...lines, "", entry.problem].join("\n");
-  const body = entry.text
-    ? limit(entry.text)
-    : `(No typed text. This note is handwriting, drawings or images: use get_page_image for pages 1–${entry.pageCount}.)`;
-  return [...lines, "", body].join("\n");
+  return [...lines, "", entry.text ? limit(entry.text) : noTextBody(entry)].join("\n");
+}
+
+function noTextBody(entry: NoteEntry): string {
+  if (entry.attachments.length) return "(No typed text. Its content is in the attachments above: open them with get_attachment.)";
+  if (entry.inkPages.length) return "(No typed text. See the pages listed above with get_page_image.)";
+  return "(No typed text.)";
 }
 
 function dayStart(date: string, addDays = 0): number {
