@@ -7,6 +7,7 @@ export const MAX_IMAGE_BYTES = 600_000;
 export const MAX_IMAGE_EDGE = 1568;
 const MAX_PASS_THROUGH_EDGE = 2000;
 const MAX_SINGLE_PART_RATIO = 1.66;
+const MAX_SINGLE_PART_ATTACHMENT_RATIO = 2.5;
 const PART_RATIO = 1.5;
 const JPEG_QUALITY = 80;
 const SHRINK_STEP = 0.8;
@@ -44,23 +45,41 @@ export function svgToPng(svg: string, width = IMAGE_WIDTH): Uint8Array {
 
 export function pageParts(svg: string): number {
   const box = viewBox(svg);
-  if (!box || box.height <= box.width * MAX_SINGLE_PART_RATIO) return 1;
-  return Math.ceil(box.height / (box.width * PART_RATIO));
+  return box ? partCount(box.width, box.height, MAX_SINGLE_PART_RATIO) : 1;
 }
 
 export function renderPage(svg: string, part: number): Uint8Array {
   const box = viewBox(svg);
-  if (!box || pageParts(svg) === 1) return svgToPng(svg);
-  const partHeight = box.width * PART_RATIO;
-  const top = box.y + (part - 1) * partHeight;
-  const height = Math.min(partHeight, box.y + box.height - top);
+  const parts = pageParts(svg);
+  if (!box || parts === 1) return svgToPng(svg);
+  const band = partBand(box.width, box.height, part, parts);
   const sliced = svg.replace(/<svg\b[^>]*>/, (tag) =>
     tag
-      .replace(/\sviewBox="[^"]*"/, ` viewBox="${box.x} ${top} ${box.width} ${height}"`)
+      .replace(/\sviewBox="[^"]*"/, ` viewBox="${box.x} ${box.y + band.top} ${box.width} ${band.height}"`)
       .replace(/\swidth="[^"]*"/, ` width="${box.width}"`)
-      .replace(/\sheight="[^"]*"/, ` height="${height}"`),
+      .replace(/\sheight="[^"]*"/, ` height="${band.height}"`),
   );
   return svgToPng(sliced);
+}
+
+export const attachmentParts = (width: number, height: number): number => partCount(width, height, MAX_SINGLE_PART_ATTACHMENT_RATIO);
+
+export function imageParts(bytes: Uint8Array): number {
+  const stored = imageSize(bytes);
+  if (!stored) return 1;
+  const { width, height } = upright(stored, exifOrientation(bytes));
+  return attachmentParts(width, height);
+}
+
+export function partBand(width: number, height: number, part: number, parts: number): { top: number; height: number } {
+  if (parts === 1) return { top: 0, height };
+  const partHeight = width * PART_RATIO;
+  const top = (part - 1) * partHeight;
+  return { top, height: Math.min(partHeight, height - top) };
+}
+
+function partCount(width: number, height: number, maxSinglePartRatio: number): number {
+  return height <= width * maxSinglePartRatio ? 1 : Math.ceil(height / (width * PART_RATIO));
 }
 
 export function imageSize(bytes: Uint8Array): Size | undefined {
@@ -80,20 +99,26 @@ export function imageSize(bytes: Uint8Array): Size | undefined {
   return undefined;
 }
 
-export function imageForClaude(bytes: Uint8Array, mimeType: string, maxBytes = MAX_IMAGE_BYTES): { data: Uint8Array; mimeType: string } {
+export function imageForClaude(
+  bytes: Uint8Array,
+  mimeType: string,
+  maxBytes = MAX_IMAGE_BYTES,
+  part?: number,
+): { data: Uint8Array; mimeType: string } {
   const stored = imageSize(bytes);
   const orientation = stored ? exifOrientation(bytes) : 1;
+  const parts = part === undefined ? 1 : imageParts(bytes);
   const overEdgeLimit = stored !== undefined && Math.max(stored.width, stored.height) > MAX_PASS_THROUGH_EDGE;
-  if (bytes.length <= maxBytes && orientation === 1 && !overEdgeLimit) return { data: bytes, mimeType };
+  if (parts === 1 && bytes.length <= maxBytes && orientation === 1 && !overEdgeLimit) return { data: bytes, mimeType };
   if (!stored) throw new NoteError(`This image is too large to send (${(bytes.length / 1e6).toFixed(1)} MB).`);
-  const { svg, width, height } = uprightSvg(bytes, mimeType, stored, orientation);
+  const { svg, width, height } = uprightSvg(bytes, mimeType, stored, orientation, part ?? 1, parts);
   const longEdge = Math.max(width, height);
   const minEdge = Math.min(MIN_IMAGE_EDGE, longEdge);
   let edge = Math.min(MAX_IMAGE_EDGE, longEdge);
   while (edge >= minEdge) {
     const rendered = rasterize(svg, Math.floor((width * edge) / longEdge));
     const pixels = rendered.pixels;
-    if (bytes.length > maxBytes && pixels.every((byte) => byte === 255)) {
+    if (parts === 1 && bytes.length > maxBytes && pixels.every((byte) => byte === 255)) {
       throw new NoteError("Couldn't read this image. The file may be damaged; open the note in Samsung Notes to check it.");
     }
     const data = encodeJpeg(rendered.width, rendered.height, pixels);
@@ -106,14 +131,17 @@ export function imageForClaude(bytes: Uint8Array, mimeType: string, maxBytes = M
 export const encodeJpeg = (width: number, height: number, rgba: Uint8Array): Uint8Array =>
   jpeg.encode({ width, height, data: rgba }, JPEG_QUALITY).data;
 
-function uprightSvg(bytes: Uint8Array, mimeType: string, stored: Size, orientation: number): Size & { svg: string } {
-  const { swapsAxes, matrix } = ORIENTATIONS[orientation]!;
-  const { width, height } = swapsAxes ? { width: stored.height, height: stored.width } : stored;
+const upright = (stored: Size, orientation: number): Size =>
+  ORIENTATIONS[orientation]!.swapsAxes ? { width: stored.height, height: stored.width } : stored;
+
+function uprightSvg(bytes: Uint8Array, mimeType: string, stored: Size, orientation: number, part: number, parts: number): Size & { svg: string } {
+  const { width, height } = upright(stored, orientation);
+  const band = partBand(width, height, part, parts);
   const href = `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
   const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}">` +
-    `<image width="${stored.width}" height="${stored.height}" transform="matrix(${matrix(stored.width, stored.height)})" xlink:href="${href}"/></svg>`;
-  return { svg, width, height };
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${band.height}" viewBox="0 ${band.top} ${width} ${band.height}">` +
+    `<image width="${stored.width}" height="${stored.height}" transform="matrix(${ORIENTATIONS[orientation]!.matrix(stored.width, stored.height)})" xlink:href="${href}"/></svg>`;
+  return { svg, width, height: band.height };
 }
 
 function exifOrientation(bytes: Uint8Array): number {

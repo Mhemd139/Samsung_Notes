@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { decode, encode } from "fast-png";
 import jpeg from "jpeg-js";
 import { describe, expect, it } from "vitest";
-import { IMAGE_WIDTH, imageForClaude, imageSize, MAX_IMAGE_BYTES, MAX_IMAGE_EDGE, pageParts, renderPage, svgToPng } from "../src/images.js";
+import { IMAGE_WIDTH, imageForClaude, imageParts, imageSize, MAX_IMAGE_BYTES, MAX_IMAGE_EDGE, pageParts, renderPage, svgToPng } from "../src/images.js";
 import { renderPageSvg } from "../src/sdocx.js";
 import { fixtureBytes } from "./helpers.js";
 
@@ -118,6 +118,57 @@ describe("tall pages", () => {
 
   it("treats SVG without a viewBox as one part", () => {
     expect(pageParts('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="100"/>')).toBe(1);
+  });
+});
+
+describe("tall attachments", () => {
+  const rgbAt = (photo: Uint8Array, x: number, y: number): Rgb => {
+    const { width, data } = jpeg.decode(photo);
+    const at = (y * width + x) * 4;
+    return [data[at]!, data[at + 1]!, data[at + 2]!];
+  };
+
+  it("keeps phone screenshots whole", () => {
+    expect(imageParts(paintedPng(1080, 2400, () => WHITE))).toBe(1);
+    expect(imageParts(paintedPng(1000, 2500, () => WHITE))).toBe(1);
+  });
+
+  const scroll = paintedPng(1080, 5400, (_, y) => (y < 100 ? RED : y >= 5300 ? BLUE : WHITE));
+
+  it("shrinks a tall image whole when no part is asked for", () => {
+    const size = imageSize(imageForClaude(scroll, "image/png").data)!;
+    expect(size.width / size.height).toBeCloseTo(1080 / 5400, 2);
+  });
+
+  it("splits a scroll screenshot into parts at full width", () => {
+    expect(imageParts(scroll)).toBe(4);
+    const first = imageForClaude(scroll, "image/png", MAX_IMAGE_BYTES, 1).data;
+    const size = imageSize(first)!;
+    expect(size.height).toBeLessThanOrEqual(MAX_IMAGE_EDGE);
+    expect(size.width / size.height).toBeCloseTo(1 / 1.5, 2);
+    expect(colourName(...rgbAt(first, 500, 30))).toBe("red");
+    const last = imageForClaude(scroll, "image/png", MAX_IMAGE_BYTES, 4).data;
+    expect(imageSize(last)).toEqual({ width: 1080, height: 540 });
+    expect(colourName(...rgbAt(last, 500, 500))).toBe("blue");
+  });
+
+  it("splits a tall photo after turning it upright", () => {
+    const photo = withSegment(paintedJpeg(3000, 600, (x) => (x < 100 ? RED : WHITE)), exifSegment(6));
+    expect(imageParts(photo)).toBe(4);
+    const first = imageForClaude(photo, "image/jpeg", MAX_IMAGE_BYTES, 1).data;
+    expect(imageSize(first)).toEqual({ width: 600, height: 900 });
+    expect(colourName(...rgbAt(first, 300, 30))).toBe("red");
+    expect(Math.min(...rgbAt(first, 300, 600))).toBeGreaterThan(240);
+  });
+
+  it("returns a blank part of a large image instead of calling it damaged", () => {
+    const rgba = randomBytes(300 * 1500 * 4);
+    rgba.fill(255, 300 * 450 * 4);
+    for (let i = 3; i < rgba.length; i += 4) rgba[i] = 255;
+    const tall = encode({ width: 300, height: 1500, data: rgba, channels: 4 });
+    expect(tall.length).toBeGreaterThan(100_000);
+    expect(imageParts(tall)).toBe(4);
+    expect(imageSize(imageForClaude(tall, "image/png", 100_000, 4).data)).toEqual({ width: 300, height: 150 });
   });
 });
 

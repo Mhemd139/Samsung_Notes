@@ -1,7 +1,7 @@
 import jpeg from "jpeg-js";
 import { describe, expect, it } from "vitest";
-import { imageSize, MAX_IMAGE_EDGE } from "../src/images.js";
-import { readPdf } from "../src/pdf.js";
+import { IMAGE_WIDTH, imageSize, MAX_IMAGE_EDGE } from "../src/images.js";
+import { PDF_BUDGET_BYTES, readPdf } from "../src/pdf.js";
 import { BLUE_SQUARE_PAGE, makePdf, TALL_PAGE, TEXT_PAGE } from "./pdfFixture.js";
 
 const MAX_API_EDGE = 2000;
@@ -26,11 +26,21 @@ describe("readPdf", () => {
     expect(green).toBeLessThan(60);
   });
 
-  it("shrinks a very tall page without text under the image limits, keeping its shape", async () => {
-    const { pages } = await readPdf(makePdf([TALL_PAGE]), [1], false);
-    const size = imageSize(pages[0]!.image!)!;
-    expect(Math.max(size.width, size.height)).toBeLessThanOrEqual(MAX_API_EDGE);
-    expect(size.width / size.height).toBeCloseTo(TALL_PAGE.width / TALL_PAGE.height, 2);
+  it("splits a very tall page without text into parts at full width", async () => {
+    const tall = makePdf([TALL_PAGE]);
+    const [first] = (await readPdf(tall, [1], false)).pages;
+    expect(first?.parts).toBe(6);
+    expect(imageSize(first!.image!)).toEqual({ width: IMAGE_WIDTH, height: 1800 });
+    const [last] = (await readPdf(tall, [1], false, PDF_BUDGET_BYTES, 6)).pages;
+    const image = jpeg.decode(last!.image!);
+    expect([image.width, image.height]).toEqual([IMAGE_WIDTH, 600]);
+    const at = (200 * image.width + image.width / 2) * 4;
+    expect(image.data[at + 2]).toBeGreaterThan(200);
+    expect(image.data[at]).toBeLessThan(60);
+  });
+
+  it("explains a part out of range", async () => {
+    await expect(readPdf(makePdf([TALL_PAGE]), [1], false, PDF_BUDGET_BYTES, 7)).rejects.toThrow("Page 1 has 6 parts.");
   });
 
   it("returns a blank tall page as an image instead of calling it damaged", async () => {

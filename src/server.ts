@@ -4,8 +4,8 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { NO_FOLDER, type Catalog, type ListResult, type NoteEntry, type Overview } from "./catalog.js";
 import { describeError, NoteError } from "./errors.js";
-import { imageForClaude, pageParts, renderPage } from "./images.js";
-import { readPdf } from "./pdf.js";
+import { imageForClaude, imageParts, MAX_IMAGE_BYTES, pageParts, renderPage } from "./images.js";
+import { PDF_BUDGET_BYTES, readPdf } from "./pdf.js";
 import { renderPageSvg } from "./sdocx.js";
 import { cutText, formatDate, formatDateTime, formatPageRanges } from "./text.js";
 
@@ -32,7 +32,7 @@ const INSTRUCTIONS = [
   "- Find notes by words, folder, dates, attachments or handwriting: list_notes. Words match titles and typed text only, never handwriting.",
   "- Read a note: read_note gives its typed text, tables and attachments, and names the pages that hold handwriting or drawings.",
   "- Handwriting, sketches or page layout: get_page_image, one page at a time. Very tall pages come in parts; the reply says how to get the next.",
-  "- Invoices, receipts, photos, scans and PDFs: list_notes with has_attachments=true (add a folder or dates to narrow it), then get_attachment for each file that read_note or list_notes names. Scanned PDF pages come back as images.",
+  "- Invoices, receipts, photos, scans and PDFs: list_notes with has_attachments=true (add a folder or dates to narrow it), then get_attachment for each file that read_note or list_notes names. Scanned PDF pages come back as images. Very tall photos and pages (long receipts, scroll screenshots) come in parts; the reply says how to get the next.",
   "- Go through everything (e.g. \"put all my invoices in a spreadsheet\"): repeat list_notes with next_offset until it stops returning one, open every note and file you need, then build the table, summary or file yourself.",
   "- Nothing matched: try a folder, dates or has_handwriting=true instead of words, then look at the pages.",
   "- A note is locked or unreadable: tell the user (locked notes must be unlocked in Samsung Notes) and move on.",
@@ -46,6 +46,8 @@ const image = (data: Uint8Array, mimeType: string): Content[number] => ({
   data: Buffer.from(data).toString("base64"),
   mimeType,
 });
+const partNote = (part: number, parts: number, next: string): string =>
+  parts === 1 ? "" : ` (part ${part} of ${parts}${part < parts ? `; call again with ${next} for the next` : ""})`;
 
 export function createServer(catalog: Catalog): McpServer {
   const server = new McpServer({ name: "samsung-notes", version }, { instructions: INSTRUCTIONS });
@@ -180,9 +182,8 @@ export function createServer(catalog: Catalog): McpServer {
         const svg = renderPageSvg(await catalog.ref(id)!.fullBytes(), page - 1);
         const parts = pageParts(svg);
         if (part > parts) throw new NoteError(`Page ${page} of “${entry.title}” has ${parts} part${parts === 1 ? "" : "s"}.`);
-        const partNote = parts > 1 ? ` (part ${part} of ${parts}${part < parts ? `; call again with part=${part + 1} for the next` : ""})` : "";
         const fitted = imageForClaude(renderPage(svg, part), "image/png");
-        return [text(`Page ${page} of ${entry.pageCount} — “${entry.title}”${partNote}`), image(fitted.data, fitted.mimeType)];
+        return [text(`Page ${page} of ${entry.pageCount} — “${entry.title}”${partNote(part, parts, `part=${part + 1}`)}`), image(fitted.data, fitted.mimeType)];
       }),
   );
 
@@ -191,16 +192,17 @@ export function createServer(catalog: Catalog): McpServer {
     {
       title: "Open an attachment",
       description:
-        "Open a photo or PDF attached to a note, such as an invoice, receipt or scan. Photos come back as images; PDFs as text, plus images of pages without a text layer.",
+        "Open a photo or PDF attached to a note, such as an invoice, receipt or scan. Photos come back as images; PDFs as text, plus images of pages without a text layer. Very tall photos and pages come in parts.",
       inputSchema: {
         id: z.string().describe("Note id from list_notes."),
         file: z.string().describe("Attachment file name from read_note or list_notes."),
         pages: z.array(z.number().int().min(1)).max(MAX_PDF_PAGES).optional().describe(`PDF only: page numbers to read, starting at 1. Default: the first ${DEFAULT_PDF_PAGES}.`),
         as_images: z.boolean().default(false).describe("PDF only: also send images of pages that have text."),
+        part: z.number().int().min(1).default(1).describe("For very tall photos and PDF pages: which part to show, starting at 1."),
       },
       annotations: READ_ONLY,
     },
-    ({ id, file, pages, as_images }) =>
+    ({ id, file, pages, as_images, part }) =>
       respond(async () => {
         const entry = requireNote(id);
         if (entry.locked) throw new NoteError(`“${entry.title}”: ${entry.problem}`);
@@ -211,10 +213,12 @@ export function createServer(catalog: Catalog): McpServer {
         }
         const bytes = await catalog.ref(id)!.readAttachment(file);
         if (attachment.mimeType.startsWith("image/")) {
-          const fitted = imageForClaude(bytes, attachment.mimeType);
-          return [text(`“${file}” from “${entry.title}”`), image(fitted.data, fitted.mimeType)];
+          const parts = imageParts(bytes);
+          if (part > parts) throw new NoteError(`“${file}” has ${parts} part${parts === 1 ? "" : "s"}.`);
+          const fitted = imageForClaude(bytes, attachment.mimeType, MAX_IMAGE_BYTES, part);
+          return [text(`“${file}” from “${entry.title}”${partNote(part, parts, `part=${part + 1}`)}`), image(fitted.data, fitted.mimeType)];
         }
-        if (attachment.mimeType === "application/pdf") return pdfContent(entry, file, bytes, pages, as_images);
+        if (attachment.mimeType === "application/pdf") return pdfContent(entry, file, bytes, pages, as_images, part);
         throw new NoteError(`Can't open “${file}” (${attachment.mimeType}). Photos (JPEG, PNG, GIF, WebP) and PDFs are supported.`);
       }),
   );
@@ -222,14 +226,22 @@ export function createServer(catalog: Catalog): McpServer {
   return server;
 }
 
-async function pdfContent(entry: NoteEntry, file: string, bytes: Uint8Array, pages: number[] | undefined, asImages: boolean): Promise<Content> {
+async function pdfContent(
+  entry: NoteEntry,
+  file: string,
+  bytes: Uint8Array,
+  pages: number[] | undefined,
+  asImages: boolean,
+  part: number,
+): Promise<Content> {
   const requested = pages ?? Array.from({ length: DEFAULT_PDF_PAGES }, (_, i) => i + 1);
-  const pdf = await readPdf(bytes, requested, asImages);
+  const pdf = await readPdf(bytes, requested, asImages, PDF_BUDGET_BYTES, part);
   const shown = pdf.pages.map((page) => page.number);
   const rest = pdf.pageCount > Math.max(0, ...shown) ? ` Call again with pages=[${Math.max(0, ...shown) + 1}, …] for more.` : "";
   const content: Content = [text(`PDF “${file}” from “${entry.title}”: ${pdf.pageCount} pages. Showing ${shown.join(", ") || "none"}.${rest}`)];
   for (const page of pdf.pages) {
-    content.push(text(`--- Page ${page.number} ---\n${page.text ? cutText(page.text, MAX_TEXT_CHARS) : "(no text layer; see the image)"}`));
+    const note = partNote(part, page.parts ?? 1, `pages=[${page.number}] and part=${part + 1}`);
+    content.push(text(`--- Page ${page.number}${note} ---\n${page.text ? cutText(page.text, MAX_TEXT_CHARS) : "(no text layer; see the image)"}`));
     if (page.image) content.push(image(page.image, "image/jpeg"));
   }
   return content;

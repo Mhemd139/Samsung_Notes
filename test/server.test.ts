@@ -2,6 +2,7 @@ import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
+import { encode } from "fast-png";
 import { unzipSync, zipSync } from "fflate";
 import { beforeAll, describe, expect, it } from "vitest";
 import { Catalog } from "../src/catalog.js";
@@ -10,7 +11,7 @@ import { createServer, TOOL_NAMES } from "../src/server.js";
 import { exportsFolderSource } from "../src/sources/exportsFolder.js";
 import { windowsAppSource } from "../src/sources/windowsApp.js";
 import { fixtureBytes, fixturePath, rezipFixture, tempDir, withoutDates } from "./helpers.js";
-import { BLUE_SQUARE_PAGE, makePdf, TEXT_PAGE } from "./pdfFixture.js";
+import { BLUE_SQUARE_PAGE, makePdf, TALL_PAGE, TEXT_PAGE } from "./pdfFixture.js";
 import { makeLocalState } from "./windowsFixture.js";
 
 type Block = { type: string; text?: string; data?: string; mimeType?: string };
@@ -336,6 +337,38 @@ describe("get_attachment", () => {
     const result = await call("get_attachment", { id: "lock", file: PHOTO }, windows);
     expect(result.isError).toBe(true);
     expect(result.text).toBe("“Bank”: This note is locked in Samsung Notes. Unlock it there to read it here.");
+  });
+
+  describe("on tall attachments", () => {
+    let tall: Client;
+    const SCROLL = "8@scroll.png";
+    const RECEIPT = "9@receipt.pdf";
+
+    beforeAll(async () => {
+      const root = tempDir("sn-server-tall");
+      const scroll = encode({ width: 1080, height: 5400, data: new Uint8Array(1080 * 5400 * 4).fill(255), channels: 4 });
+      const note = { ...unzipSync(fixtureBytes("03-image-placement.sdocx")), [`media/${SCROLL}`]: scroll, [`media/${RECEIPT}`]: makePdf([TALL_PAGE]) };
+      writeFileSync(join(root, "Shop.sdocx"), zipSync(note));
+      tall = await connect(new Catalog(() => ({ sources: [exportsFolderSource(root)], problems: [] })));
+    });
+
+    it("sends a scroll screenshot in parts and says how to get the next", async () => {
+      expect((await call("get_attachment", { id: "file:Shop.sdocx", file: SCROLL }, tall)).text).toContain(
+        "(part 1 of 4; call again with part=2 for the next)",
+      );
+      expect((await call("get_attachment", { id: "file:Shop.sdocx", file: SCROLL, part: 4 }, tall)).text).toContain("(part 4 of 4)");
+    });
+
+    it("explains a part out of range", async () => {
+      const result = await call("get_attachment", { id: "file:Shop.sdocx", file: SCROLL, part: 5 }, tall);
+      expect(result.isError).toBe(true);
+      expect(result.text).toBe(`“${SCROLL}” has 4 parts.`);
+    });
+
+    it("sends a tall PDF page in parts and says how to get the next", async () => {
+      const { text } = await call("get_attachment", { id: "file:Shop.sdocx", file: RECEIPT }, tall);
+      expect(text).toContain("--- Page 1 (part 1 of 6; call again with pages=[1] and part=2 for the next) ---");
+    });
   });
 
   describe("on a note whose text can't be read", () => {
