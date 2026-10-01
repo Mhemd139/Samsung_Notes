@@ -14,31 +14,31 @@ Let Claude read your Samsung Notes: typed text, tables, handwritten pages, and a
 
 ### With your AI agent
 
-Paste this into Claude Code, Claude Desktop's Code tab, or any agent that can run commands on your computer. Giving your agent the link to this page works too.
+Paste this into Claude Code, Claude Desktop's Code tab, or any agent with a terminal. It runs one command, then you click **Install** twice in Claude.
 
 ```text
-Install Samsung Notes Reader for me from https://github.com/Mhemd139/Samsung_Notes
-Follow the "Notes for agents" in its README: run what you can yourself, and tell me exactly what to click for the rest.
+Install the Samsung Notes Reader extension in my Claude Desktop. Run the command for my system, then tell me to click Install twice in Claude:
+Windows (PowerShell): curl.exe -fsSLo "$HOME\Downloads\samsung-notes-mcp.mcpb" https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb; claude-desktop.exe "$HOME\Downloads\samsung-notes-mcp.mcpb"
+macOS: curl -fsSLo ~/Downloads/samsung-notes-mcp.mcpb https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb && open -a Claude ~/Downloads/samsung-notes-mcp.mcpb
 ```
 
 <details>
 <summary><b>Notes for agents</b></summary>
 
-- Don't ask which app. If Claude Desktop is installed, use the Claude Desktop section: its chats and its Code tab both get the tools. Use the Claude Code section only if Claude Desktop isn't installed, or the user asks for Claude Code in a terminal or IDE.
-- Claude Desktop: download the bundle yourself, then open it the way a double-click would (Windows PowerShell: `Invoke-Item "<file>"`; macOS: `open -a Claude "<file>"`). The user clicks **Install** twice; Claude Desktop asks for that on purpose. Don't edit `claude_desktop_config.json`: the extension sets itself up and needs no restart.
-- Optional check that the bundle was built from this repository by its release workflow: `gh attestation verify samsung-notes-mcp.mcpb --repo Mhemd139/Samsung_Notes`. Skip it if `gh` isn't installed or signed in. If it runs and fails, stop and tell the user.
-- Claude Code: run the commands in a folder that will stay, not a temp folder.
-- Where the notes are: with Samsung Notes for Windows, nothing to set. Otherwise guide the user through step 2 of the Claude Desktop section; phone exports need their hands.
-- Done when `claude mcp list` shows `samsung-notes` as connected (Claude Code), or a new Claude Desktop chat answers “Give me an overview of my notes.”
+- Install into Claude Desktop with the command above; don't ask the user to choose. Use the Claude Code section only if Claude Desktop isn't installed or the user asks for Claude Code.
+- If `claude-desktop.exe` isn't found (older Windows installs), open the file with `Invoke-Item` instead; if Windows then asks which app, the user picks Claude → Always.
+- The user clicks **Install**, then **Install** again; Claude Desktop asks for that on purpose. The red "not verified by Anthropic" banner is normal. Don't edit `claude_desktop_config.json`, and don't restart Claude.
+- Samsung Notes for Windows needs no setting. Anyone else exports notes from their phone into a folder: see step 2 of the Claude Desktop section.
+- Done when a new Claude Desktop chat answers “Give me an overview of my notes.”
 
 </details>
 
 ### Claude Desktop
 
-1. **[Download samsung-notes-mcp.mcpb](https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb)** and open it.
+1. **[Download samsung-notes-mcp.mcpb](https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb)**, open it, and click **Install**, then **Install** again.
    - Windows may ask which app opens `.mcpb` files: choose **Claude** and **Always**.
-   - Claude Desktop shows the extension with a red banner saying the developer isn't verified by Anthropic. That's normal for any extension outside Anthropic's directory. Click **Install**, then **Install** again in the dialog.
-   - If opening the file doesn't reach Claude: **Settings → Extensions → Advanced settings → Install Extension…**, then choose the file.
+   - The red "not verified by Anthropic" banner is normal for any extension outside Anthropic's directory.
+   - If the file doesn't open in Claude: **Settings → Extensions → Advanced settings → Install Extension…**, then choose it.
 2. Where are your notes?
    - **Samsung Notes for Windows** (Galaxy Book, or any PC where it runs): nothing to set. Open Samsung Notes once and sign in so your notes sync.
    - **Everything else (Mac, other PCs)**: on your phone, open Samsung Notes, select notes → **Share** → **Samsung Notes file**, and save the `.sdocx` files into one folder on your computer (Google Drive, OneDrive, USB — any way works). In Claude Desktop, open the extension's settings and choose that folder as **Exported notes folder**. Put new exports in the same folder any time; Claude sees them on the next question.
@@ -82,6 +82,7 @@ claude mcp add --scope user samsung-notes -- node "$PWD/dist/index.js"
 - Your notes are read on your computer. There is no server, no account and no analytics, and the extension makes no network requests.
 - It never changes, moves or deletes a note, and keeps no copies of them.
 - When Claude opens a note, page or attachment during a chat, that content is sent to Claude as part of the chat, like anything you paste, under [Anthropic's privacy policy](https://www.anthropic.com/legal/privacy). Nothing else leaves your computer.
+- Every release bundle is built by this repository's GitHub workflow, with a provenance attestation. Check a download with `gh attestation verify samsung-notes-mcp.mcpb --repo Mhemd139/Samsung_Notes`.
 - Questions: [open an issue](https://github.com/Mhemd139/Samsung_Notes/issues).
 
 ## Limits
