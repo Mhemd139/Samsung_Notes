@@ -1,43 +1,54 @@
 # Samsung Notes for Claude
 
+[![CI](https://github.com/Mhemd139/Samsung_Notes/actions/workflows/ci.yml/badge.svg)](https://github.com/Mhemd139/Samsung_Notes/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/Mhemd139/Samsung_Notes)](https://github.com/Mhemd139/Samsung_Notes/releases/latest)
+[![License: GPL-3.0](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
+
 Let Claude read your Samsung Notes: typed text, tables, handwritten pages, and attached photos and PDFs such as invoices and receipts. Ask things like “Put every invoice from 2026 in a spreadsheet” or “What did I write about the kitchen?”
 
-It is **read-only**: it never changes, moves or deletes a note. Unofficial; not affiliated with Samsung.
+- **Read-only:** it never changes, moves or deletes a note.
+- **Local:** your notes are read on your computer. No account, no server, no network requests.
+- **Unofficial:** not affiliated with Samsung.
 
-## Install with your AI agent
+## Install
 
-Copy this into Claude Code, Claude Desktop's Code tab, or any agent that can run commands on your computer:
+### With your AI agent
+
+Paste this into Claude Code, Claude Desktop's Code tab, or any agent that can run commands on your computer. Giving your agent the link to this page works too.
 
 ```text
-Install "Samsung Notes Reader" for me: a read-only MCP server that lets Claude read my Samsung Notes (https://github.com/Mhemd139/Samsung_Notes). Do the steps yourself; only ask me for the clicks you can't do.
-
-1. Ask me where I want it: Claude Desktop (recommended), Claude Code, or both.
-2. Claude Desktop: if it isn't installed, send me to https://claude.ai/download first. Download https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb into my Downloads folder and open it the way a double-click would (Windows PowerShell: Invoke-Item "<file>"; macOS: open -a Claude "<file>"). Then tell me:
-   - if Windows asks which app opens .mcpb files, choose Claude and Always;
-   - a red "not verified by Anthropic" banner is normal; click Install, then Install again in the dialog;
-   - if Claude doesn't open the file: Settings → Extensions → Advanced settings → Install Extension…, and pick the file.
-   Don't edit claude_desktop_config.json; the extension sets itself up.
-3. Claude Code: check node -v is 20.12 or newer. Clone the repo into a folder that will stay (not a temp folder), run npm ci and npm run build there, then run: claude mcp add --scope user samsung-notes -- node "<absolute path>/dist/index.js"
-4. My notes: if I use Samsung Notes for Windows, there's nothing to set. Otherwise help me export them from my phone (Samsung Notes → select notes → Share → Samsung Notes file) into one folder on this computer. For Claude Desktop, I choose that folder as "Exported notes folder" in the extension's settings; for Claude Code, add --exports "<folder>" at the end of the claude mcp add command.
-5. Finish by telling me to start a new chat and ask: "Give me an overview of my notes."
+Install Samsung Notes Reader for me from https://github.com/Mhemd139/Samsung_Notes
+Follow the "Notes for agents" in its README: run what you can yourself, and tell me exactly what to click for the rest.
 ```
 
-Or install it yourself:
+<details>
+<summary><b>Notes for agents</b></summary>
 
-## Install (Claude Desktop)
+- Ask the user which app they want it in: Claude Desktop (recommended) or Claude Code. Then follow that section below.
+- Claude Desktop: download the bundle yourself, then open it the way a double-click would (Windows PowerShell: `Invoke-Item "<file>"`; macOS: `open -a Claude "<file>"`). The user clicks **Install** twice; Claude Desktop asks for that on purpose. Don't edit `claude_desktop_config.json`: the extension sets itself up and needs no restart.
+- To confirm the bundle was built from this repository by its release workflow (needs a signed-in GitHub CLI): `gh attestation verify samsung-notes-mcp.mcpb --repo Mhemd139/Samsung_Notes`.
+- Claude Code: run the commands in a folder that will stay, not a temp folder.
+- Where the notes are: see step 2 of the Claude Desktop section. Phone exports need the user's hands; guide them.
+- Done when `claude mcp list` shows `samsung-notes` as connected (Claude Code), or a new Claude Desktop chat answers “Give me an overview of my notes.”
 
-1. **[Download samsung-notes-mcp.mcpb](https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb)** and open it. Claude Desktop shows the extension: click **Install**, then **Install** again in the dialog. Nothing else to install; Claude Desktop includes Node.js.
+</details>
+
+### Claude Desktop
+
+1. **[Download samsung-notes-mcp.mcpb](https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb)** and open it.
    - Windows may ask which app opens `.mcpb` files: choose **Claude** and **Always**.
-   - Claude shows a red banner saying the developer isn't verified by Anthropic. That's normal for any extension outside Anthropic's directory; all the code is in this repository.
-   - If opening the file doesn't reach Claude: in Claude Desktop, go to **Settings → Extensions → Advanced settings → Install Extension…** and choose the file.
+   - Claude Desktop shows the extension with a red banner saying the developer isn't verified by Anthropic. That's normal for any extension outside Anthropic's directory. Click **Install**, then **Install** again in the dialog.
+   - If opening the file doesn't reach Claude: **Settings → Extensions → Advanced settings → Install Extension…**, then choose the file.
 2. Where are your notes?
    - **Samsung Notes for Windows** (Galaxy Book, or any PC where it runs): nothing to set. Open Samsung Notes once and sign in so your notes sync.
    - **Everything else (Mac, other PCs)**: on your phone, open Samsung Notes, select notes → **Share** → **Samsung Notes file**, and save the `.sdocx` files into one folder on your computer (Google Drive, OneDrive, USB — any way works). In Claude Desktop, open the extension's settings and choose that folder as **Exported notes folder**. Put new exports in the same folder any time; Claude sees them on the next question.
-3. Start a new chat and ask about your notes.
+3. Start a new chat and ask: “Give me an overview of my notes.”
 
-## Claude Code
+Claude Desktop includes Node.js, so there's nothing else to install.
 
-Until the npm package is published, run it from a copy of this repository (needs Node.js 20.12 or newer):
+### Claude Code
+
+Until the npm package is published, run it from a copy of this repository (needs git and Node.js 20.12 or newer):
 
 ```bash
 git clone https://github.com/Mhemd139/Samsung_Notes.git
@@ -83,7 +94,7 @@ claude mcp add --scope user samsung-notes -- node "$PWD/dist/index.js"
 
 ## Troubleshooting
 
-- **“No Samsung Notes found”**: see step 2 of Install.
+- **“No Samsung Notes found”**: see step 2 of the Claude Desktop install.
 - **“No notes yet” or “Folder not found”**: let Samsung Notes finish syncing, or create the folder. No restart needed; Claude sees the notes on the next question.
 - **A note is missing**: notes in the recycle bin are skipped. New notes appear on the next question — no restart needed.
 - **Ask Claude to run `notes_overview`**: it lists every problem it found.
