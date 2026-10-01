@@ -2,7 +2,18 @@ import { randomBytes } from "node:crypto";
 import { decode, encode } from "fast-png";
 import jpeg from "jpeg-js";
 import { describe, expect, it } from "vitest";
-import { IMAGE_WIDTH, imageForClaude, imageParts, imageSize, MAX_IMAGE_BYTES, MAX_IMAGE_EDGE, pageParts, renderPage, svgToPng } from "../src/images.js";
+import {
+  IMAGE_WIDTH,
+  imageForClaude,
+  imageParts,
+  imageSize,
+  MAX_IMAGE_BYTES,
+  MAX_IMAGE_EDGE,
+  pageParts,
+  partBand,
+  renderPage,
+  svgToPng,
+} from "../src/images.js";
 import { renderPageSvg } from "../src/sdocx.js";
 import { fixtureBytes } from "./helpers.js";
 
@@ -104,16 +115,23 @@ describe("tall pages", () => {
     const svg = tallSvg(100, 190);
     expect(pageParts(svg)).toBe(2);
     expect(imageSize(renderPage(svg, 1))).toEqual({ width: IMAGE_WIDTH, height: 1800 });
-    expect(imageSize(renderPage(svg, 2))).toEqual({ width: IMAGE_WIDTH, height: 480 });
+    expect(imageSize(renderPage(svg, 2))).toEqual({ width: IMAGE_WIDTH, height: 1800 });
   });
 
   it("slices tall pages into readable parts", () => {
     const svg = tallSvg(100, 1000);
-    expect(pageParts(svg)).toBe(7);
+    expect(pageParts(svg)).toBe(8);
     expect(imageSize(renderPage(svg, 1))).toEqual({ width: IMAGE_WIDTH, height: 1800 });
-    const last = renderPage(svg, 7);
-    expect(imageSize(last)).toEqual({ width: IMAGE_WIDTH, height: 1200 });
-    expect(pixel(last, 600, 1150)).toEqual([0, 0, 255]);
+    const last = renderPage(svg, 8);
+    expect(imageSize(last)).toEqual({ width: IMAGE_WIDTH, height: 1800 });
+    expect(pixel(last, 600, 1700)).toEqual([0, 0, 255]);
+  });
+
+  it("overlaps parts so a line on a cut shows whole in one of them, with no sliver at the end", () => {
+    const bands = [1, 2, 3, 4].map((part) => partBand(1080, 5400, part, 4));
+    for (const band of bands) expect(band.height).toBe(1620);
+    for (let i = 1; i < bands.length; i++) expect(bands[i - 1]!.top + 1620 - bands[i]!.top).toBeGreaterThanOrEqual(108);
+    expect(bands[3]!.top + 1620).toBe(5400);
   });
 
   it("treats SVG without a viewBox as one part", () => {
@@ -128,9 +146,18 @@ describe("tall attachments", () => {
     return [data[at]!, data[at + 1]!, data[at + 2]!];
   };
 
-  it("keeps phone screenshots whole", () => {
+  it("keeps phone screenshots whole, and tall images Claude sees at full size anyway", () => {
     expect(imageParts(paintedPng(1080, 2400, () => WHITE))).toBe(1);
     expect(imageParts(paintedPng(1000, 2500, () => WHITE))).toBe(1);
+    expect(imageParts(paintedPng(100, 1000, () => WHITE))).toBe(1);
+    expect(imageParts(paintedPng(600, MAX_IMAGE_EDGE, () => WHITE))).toBe(1);
+    expect(imageParts(paintedPng(600, MAX_IMAGE_EDGE + 1, () => WHITE))).toBe(2);
+  });
+
+  it("treats a header with zero width as one part", () => {
+    const broken = Uint8Array.from(paintedPng(10, 3000, () => WHITE));
+    broken.fill(0, 16, 20);
+    expect(imageParts(broken)).toBe(1);
   });
 
   const scroll = paintedPng(1080, 5400, (_, y) => (y < 100 ? RED : y >= 5300 ? BLUE : WHITE));
@@ -140,16 +167,15 @@ describe("tall attachments", () => {
     expect(size.width / size.height).toBeCloseTo(1080 / 5400, 2);
   });
 
-  it("splits a scroll screenshot into parts at full width", () => {
+  it("splits a scroll screenshot into overlapping parts", () => {
     expect(imageParts(scroll)).toBe(4);
-    const first = imageForClaude(scroll, "image/png", MAX_IMAGE_BYTES, 1).data;
-    const size = imageSize(first)!;
-    expect(size.height).toBeLessThanOrEqual(MAX_IMAGE_EDGE);
-    expect(size.width / size.height).toBeCloseTo(1 / 1.5, 2);
-    expect(colourName(...rgbAt(first, 500, 30))).toBe("red");
-    const last = imageForClaude(scroll, "image/png", MAX_IMAGE_BYTES, 4).data;
-    expect(imageSize(last)).toEqual({ width: 1080, height: 540 });
-    expect(colourName(...rgbAt(last, 500, 500))).toBe("blue");
+    for (const part of [1, 4]) {
+      const size = imageSize(imageForClaude(scroll, "image/png", MAX_IMAGE_BYTES, part).data)!;
+      expect(size.height).toBeLessThanOrEqual(MAX_IMAGE_EDGE);
+      expect(size.width / size.height).toBeCloseTo(1 / 1.5, 2);
+    }
+    expect(colourName(...rgbAt(imageForClaude(scroll, "image/png", MAX_IMAGE_BYTES, 1).data, 500, 30))).toBe("red");
+    expect(colourName(...rgbAt(imageForClaude(scroll, "image/png", MAX_IMAGE_BYTES, 4).data, 500, 1530))).toBe("blue");
   });
 
   it("splits a tall photo after turning it upright", () => {
@@ -162,13 +188,13 @@ describe("tall attachments", () => {
   });
 
   it("returns a blank part of a large image instead of calling it damaged", () => {
-    const rgba = randomBytes(300 * 1500 * 4);
-    rgba.fill(255, 300 * 450 * 4);
+    const rgba = randomBytes(400 * 2000 * 4);
+    rgba.fill(255, 400 * 600 * 4);
     for (let i = 3; i < rgba.length; i += 4) rgba[i] = 255;
-    const tall = encode({ width: 300, height: 1500, data: rgba, channels: 4 });
+    const tall = encode({ width: 400, height: 2000, data: rgba, channels: 4 });
     expect(tall.length).toBeGreaterThan(100_000);
     expect(imageParts(tall)).toBe(4);
-    expect(imageSize(imageForClaude(tall, "image/png", 100_000, 4).data)).toEqual({ width: 300, height: 150 });
+    expect(imageSize(imageForClaude(tall, "image/png", 100_000, 4).data)).toEqual({ width: 400, height: 600 });
   });
 });
 

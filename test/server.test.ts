@@ -368,6 +368,17 @@ describe("get_attachment", () => {
     it("sends a tall PDF page in parts and says how to get the next", async () => {
       const { text } = await call("get_attachment", { id: "file:Shop.sdocx", file: RECEIPT }, tall);
       expect(text).toContain("--- Page 1 (part 1 of 6; call again with pages=[1] and part=2 for the next) ---");
+      const second = await call("get_attachment", { id: "file:Shop.sdocx", file: RECEIPT, pages: [1], part: 2 }, tall);
+      expect(second.text).toContain("--- Page 1 (part 2 of 6; call again with pages=[1] and part=3 for the next) ---");
+      const beyond = await call("get_attachment", { id: "file:Shop.sdocx", file: RECEIPT, pages: [1], part: 7 }, tall);
+      expect(beyond.isError).toBe(true);
+      expect(beyond.text).toBe("Page 1 has 6 parts.");
+    });
+
+    it("tells the agent that parts overlap and to read them all before taking figures", () => {
+      const instructions = tall.getInstructions() ?? "";
+      expect(instructions).toContain("overlapping parts");
+      expect(instructions).toContain("Read every part before taking figures");
     });
   });
 

@@ -33,8 +33,8 @@ describe("readPdf", () => {
     expect(imageSize(first!.image!)).toEqual({ width: IMAGE_WIDTH, height: 1800 });
     const [last] = (await readPdf(tall, [1], false, PDF_BUDGET_BYTES, 6)).pages;
     const image = jpeg.decode(last!.image!);
-    expect([image.width, image.height]).toEqual([IMAGE_WIDTH, 600]);
-    const at = (200 * image.width + image.width / 2) * 4;
+    expect([image.width, image.height]).toEqual([IMAGE_WIDTH, 1800]);
+    const at = (1200 * image.width + image.width / 2) * 4;
     expect(image.data[at + 2]).toBeGreaterThan(200);
     expect(image.data[at]).toBeLessThan(60);
   });

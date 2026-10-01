@@ -9,6 +9,7 @@ const MAX_PASS_THROUGH_EDGE = 2000;
 const MAX_SINGLE_PART_RATIO = 1.66;
 const MAX_SINGLE_PART_ATTACHMENT_RATIO = 2.5;
 const PART_RATIO = 1.5;
+const PART_OVERLAP_RATIO = 0.1;
 const JPEG_QUALITY = 80;
 const SHRINK_STEP = 0.8;
 const MIN_IMAGE_EDGE = 200;
@@ -62,7 +63,8 @@ export function renderPage(svg: string, part: number): Uint8Array {
   return svgToPng(sliced);
 }
 
-export const attachmentParts = (width: number, height: number): number => partCount(width, height, MAX_SINGLE_PART_ATTACHMENT_RATIO);
+export const attachmentParts = (width: number, height: number): number =>
+  width > 0 && height > MAX_IMAGE_EDGE ? partCount(width, height, MAX_SINGLE_PART_ATTACHMENT_RATIO) : 1;
 
 export function imageParts(bytes: Uint8Array): number {
   const stored = imageSize(bytes);
@@ -74,12 +76,13 @@ export function imageParts(bytes: Uint8Array): number {
 export function partBand(width: number, height: number, part: number, parts: number): { top: number; height: number } {
   if (parts === 1) return { top: 0, height };
   const partHeight = width * PART_RATIO;
-  const top = (part - 1) * partHeight;
-  return { top, height: Math.min(partHeight, height - top) };
+  return { top: ((part - 1) * (height - partHeight)) / (parts - 1), height: partHeight };
 }
 
 function partCount(width: number, height: number, maxSinglePartRatio: number): number {
-  return height <= width * maxSinglePartRatio ? 1 : Math.ceil(height / (width * PART_RATIO));
+  if (height <= width * maxSinglePartRatio) return 1;
+  const overlap = width * PART_OVERLAP_RATIO;
+  return Math.ceil((height - overlap) / (width * PART_RATIO - overlap));
 }
 
 export function imageSize(bytes: Uint8Array): Size | undefined {

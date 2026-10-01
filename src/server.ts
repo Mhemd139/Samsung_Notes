@@ -31,8 +31,8 @@ const INSTRUCTIONS = [
   "- Start of a task, or \"what's in my notes?\": notes_overview shows sources, folders, totals and problems.",
   "- Find notes by words, folder, dates, attachments or handwriting: list_notes. Words match titles and typed text only, never handwriting.",
   "- Read a note: read_note gives its typed text, tables and attachments, and names the pages that hold handwriting or drawings.",
-  "- Handwriting, sketches or page layout: get_page_image, one page at a time. Very tall pages come in parts; the reply says how to get the next.",
-  "- Invoices, receipts, photos, scans and PDFs: list_notes with has_attachments=true (add a folder or dates to narrow it), then get_attachment for each file that read_note or list_notes names. Scanned PDF pages come back as images. Very tall photos and pages (long receipts, scroll screenshots) come in parts; the reply says how to get the next.",
+  "- Handwriting, sketches or page layout: get_page_image, one page at a time. Very tall pages come in overlapping parts; the reply says how to get the next.",
+  "- Invoices, receipts, photos, scans and PDFs: list_notes with has_attachments=true (add a folder or dates to narrow it), then get_attachment for each file that read_note or list_notes names. Scanned PDF pages come back as images. Very tall photos and pages (long receipts, scroll screenshots) come in overlapping parts; the reply says how to get the next. Read every part before taking figures, and count a line that shows in two parts once.",
   "- Go through everything (e.g. \"put all my invoices in a spreadsheet\"): repeat list_notes with next_offset until it stops returning one, open every note and file you need, then build the table, summary or file yourself.",
   "- Nothing matched: try a folder, dates or has_handwriting=true instead of words, then look at the pages.",
   "- A note is locked or unreadable: tell the user (locked notes must be unlocked in Samsung Notes) and move on.",
@@ -165,7 +165,7 @@ export function createServer(catalog: Catalog): McpServer {
     {
       title: "See a page",
       description:
-        "See one page as an image. Use it for handwriting, drawings and layout, which read_note's text leaves out. Very tall pages come in parts.",
+        "See one page as an image. Use it for handwriting, drawings and layout, which read_note's text leaves out. Very tall pages come in overlapping parts.",
       inputSchema: {
         id: z.string().describe("Note id from list_notes."),
         page: z.number().int().min(1).describe("Page number, starting at 1."),
@@ -192,13 +192,13 @@ export function createServer(catalog: Catalog): McpServer {
     {
       title: "Open an attachment",
       description:
-        "Open a photo or PDF attached to a note, such as an invoice, receipt or scan. Photos come back as images; PDFs as text, plus images of pages without a text layer. Very tall photos and pages come in parts.",
+        "Open a photo or PDF attached to a note, such as an invoice, receipt or scan. Photos come back as images; PDFs as text, plus images of pages without a text layer. Very tall photos and pages come in overlapping parts.",
       inputSchema: {
         id: z.string().describe("Note id from list_notes."),
         file: z.string().describe("Attachment file name from read_note or list_notes."),
         pages: z.array(z.number().int().min(1)).max(MAX_PDF_PAGES).optional().describe(`PDF only: page numbers to read, starting at 1. Default: the first ${DEFAULT_PDF_PAGES}.`),
         as_images: z.boolean().default(false).describe("PDF only: also send images of pages that have text."),
-        part: z.number().int().min(1).default(1).describe("For very tall photos and PDF pages: which part to show, starting at 1."),
+        part: z.number().int().min(1).default(1).describe("For very tall photos and PDF pages: which part to show, starting at 1. For a PDF, ask for one page at a time: pages=[N]."),
       },
       annotations: READ_ONLY,
     },

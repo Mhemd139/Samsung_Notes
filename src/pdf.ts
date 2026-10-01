@@ -58,7 +58,8 @@ async function renderJpeg(page: PDFiumPage, number: number, part: number): Promi
     height,
     render: async (bitmap: { width: number; height: number; data: Uint8Array }) => {
       const row = bitmap.width * 4;
-      return encodeJpeg(bitmap.width, band.height, bitmap.data.subarray(band.top * row, (band.top + band.height) * row));
+      const top = Math.round(band.top);
+      return encodeJpeg(bitmap.width, band.height, bitmap.data.subarray(top * row, (top + band.height) * row));
     },
   });
   return { image: imageForClaude(data, "image/jpeg").data, parts };
