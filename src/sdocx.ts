@@ -113,6 +113,6 @@ export function renderPageSvg(bytes: Uint8Array, pageIndex: number): RenderedPag
     const { document, layout } = session.inspection() as Inspection;
     const { note_text } = document.metadata;
     if (note_text?.text?.trim() || note_text?.object_spans?.length) return { svg };
-    return { svg, inkBottom: document.pages[layout.pages[pageIndex]!.source_page_index]?.content_bbox?.y_max ?? 0 };
+    return { svg, inkBottom: document.pages[layout.pages[pageIndex]!.source_page_index]?.content_bbox?.y_max };
   });
 }
