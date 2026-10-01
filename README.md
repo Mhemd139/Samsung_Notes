@@ -4,6 +4,26 @@ Let Claude read your Samsung Notes: typed text, tables, handwritten pages, and a
 
 It is **read-only**: it never changes, moves or deletes a note. Unofficial; not affiliated with Samsung.
 
+## Install with your AI agent
+
+Copy this into Claude Code, Claude Desktop's Code tab, or any agent that can run commands on your computer:
+
+```text
+Install "Samsung Notes Reader" for me: a read-only MCP server that lets Claude read my Samsung Notes (https://github.com/Mhemd139/Samsung_Notes). Do the steps yourself; only ask me for the clicks you can't do.
+
+1. Ask me where I want it: Claude Desktop (recommended), Claude Code, or both.
+2. Claude Desktop: if it isn't installed, send me to https://claude.ai/download first. Download https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb into my Downloads folder and open it the way a double-click would (Windows PowerShell: Invoke-Item "<file>"; macOS: open -a Claude "<file>"). Then tell me:
+   - if Windows asks which app opens .mcpb files, choose Claude and Always;
+   - a red "not verified by Anthropic" banner is normal; click Install, then Install again in the dialog;
+   - if Claude doesn't open the file: Settings → Extensions → Advanced settings → Install Extension…, and pick the file.
+   Don't edit claude_desktop_config.json; the extension sets itself up.
+3. Claude Code: check node -v is 20.12 or newer. Clone the repo into a folder that will stay (not a temp folder), run npm ci and npm run build there, then run: claude mcp add --scope user samsung-notes -- node "<absolute path>/dist/index.js"
+4. My notes: if I use Samsung Notes for Windows, there's nothing to set. Otherwise help me export them from my phone (Samsung Notes → select notes → Share → Samsung Notes file) into one folder on this computer. For Claude Desktop, I choose that folder as "Exported notes folder" in the extension's settings; for Claude Code, add --exports "<folder>" at the end of the claude mcp add command.
+5. Finish by telling me to start a new chat and ask: "Give me an overview of my notes."
+```
+
+Or install it yourself:
+
 ## Install (Claude Desktop)
 
 1. **[Download samsung-notes-mcp.mcpb](https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb)** and open it. Claude Desktop shows the extension: click **Install**, then **Install** again in the dialog. Nothing else to install; Claude Desktop includes Node.js.
