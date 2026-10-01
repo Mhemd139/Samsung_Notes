@@ -15,10 +15,17 @@ It is **read-only**: it never changes, moves or deletes a note. Unofficial; not 
 
 ## Claude Code
 
+Until the npm package is published, run it from a copy of this repository:
+
 ```bash
-claude mcp add samsung-notes -- npx -y samsung-notes-mcp
+git clone https://github.com/Mhemd139/Samsung_Notes.git
+cd Samsung_Notes
+npm ci
+npm run build
+claude mcp add samsung-notes -- node "$PWD/dist/index.js"
 ```
-With exported notes: `claude mcp add samsung-notes -- npx -y samsung-notes-mcp --exports "/path/to/folder"`.
+
+With exported notes, add `--exports "/path/to/folder"` at the end of the last command.
 
 ## Try asking
 
