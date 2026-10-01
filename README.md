@@ -24,11 +24,11 @@ Follow the "Notes for agents" in its README: run what you can yourself, and tell
 <details>
 <summary><b>Notes for agents</b></summary>
 
-- Ask the user which app they want it in: Claude Desktop (recommended) or Claude Code. Then follow that section below.
+- Don't ask which app. If Claude Desktop is installed, use the Claude Desktop section: its chats and its Code tab both get the tools. Use the Claude Code section only if Claude Desktop isn't installed, or the user asks for Claude Code in a terminal or IDE.
 - Claude Desktop: download the bundle yourself, then open it the way a double-click would (Windows PowerShell: `Invoke-Item "<file>"`; macOS: `open -a Claude "<file>"`). The user clicks **Install** twice; Claude Desktop asks for that on purpose. Don't edit `claude_desktop_config.json`: the extension sets itself up and needs no restart.
-- To confirm the bundle was built from this repository by its release workflow (needs a signed-in GitHub CLI): `gh attestation verify samsung-notes-mcp.mcpb --repo Mhemd139/Samsung_Notes`.
+- Optional check that the bundle was built from this repository by its release workflow: `gh attestation verify samsung-notes-mcp.mcpb --repo Mhemd139/Samsung_Notes`. Skip it if `gh` isn't installed or signed in. If it runs and fails, stop and tell the user.
 - Claude Code: run the commands in a folder that will stay, not a temp folder.
-- Where the notes are: see step 2 of the Claude Desktop section. Phone exports need the user's hands; guide them.
+- Where the notes are: with Samsung Notes for Windows, nothing to set. Otherwise guide the user through step 2 of the Claude Desktop section; phone exports need their hands.
 - Done when `claude mcp list` shows `samsung-notes` as connected (Claude Code), or a new Claude Desktop chat answers “Give me an overview of my notes.”
 
 </details>
