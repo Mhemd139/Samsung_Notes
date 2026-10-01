@@ -6,7 +6,7 @@
 
 Let Claude read your Samsung Notes: typed text, tables, handwritten pages, and attached photos and PDFs such as invoices and receipts. Ask things like “Put every invoice from 2026 in a spreadsheet” or “What did I write about the kitchen?”
 
-- **Read-only:** it never changes, moves or deletes a note.
+- **Never changes your notes:** it can't edit, move or delete a note. When you ask, it saves copies of attachments into a folder on your computer.
 - **Local:** your notes are read on your computer. No account, no server, no network requests.
 - **Unofficial:** not affiliated with Samsung.
 
@@ -42,7 +42,8 @@ macOS: curl -fsSLo ~/Downloads/samsung-notes-mcp.mcpb https://github.com/Mhemd13
 2. Where are your notes?
    - **Samsung Notes for Windows** (Galaxy Book, or any PC where it runs): nothing to set. Open Samsung Notes once and sign in so your notes sync.
    - **Everything else (Mac, other PCs)**: on your phone, open Samsung Notes, select notes → **Share** → **Samsung Notes file**, and save the `.sdocx` files into one folder on your computer (Google Drive, OneDrive, USB — any way works). In Claude Desktop, open the extension's settings and choose that folder as **Exported notes folder**. Put new exports in the same folder any time; Claude sees them on the next question.
-3. Start a new chat and ask: “Give me an overview of my notes.”
+3. Optional: **Save folder** in the extension's settings is where Claude saves copies of attachments when you ask. By default it's the “Samsung Notes” folder in Documents. To keep them in Google Drive, OneDrive, iCloud or Dropbox, choose a folder inside that service's synced folder.
+4. Start a new chat and ask: “Give me an overview of my notes.”
 
 Claude Desktop includes Node.js, so there's nothing else to install.
 
@@ -58,7 +59,7 @@ npm run build
 claude mcp add --scope user samsung-notes -- node "$PWD/dist/index.js"
 ```
 
-`--scope user` makes it work in every folder, not only this one. With exported notes, add `--exports "/path/to/folder"` at the end of the last command.
+`--scope user` makes it work in every folder, not only this one. With exported notes, add `--exports "/path/to/folder"` at the end of the last command. To save attachments somewhere other than the “Samsung Notes” folder in Documents, add `--save-dir "/path/to/folder"`.
 
 ## Try asking
 
@@ -66,6 +67,7 @@ claude mcp add --scope user samsung-notes -- node "$PWD/dist/index.js"
 - “Find every invoice from this year and make a table: vendor, date, total, note.”
 - “Read my handwritten notes from last week and summarise them.”
 - “What's in the PDF attached to my ‘Car insurance’ note?”
+- “Put all the invoices from my ‘Receipts’ folder into a folder, named by date, vendor and total.”
 
 ## What Claude can do
 
@@ -76,11 +78,12 @@ claude mcp add --scope user samsung-notes -- node "$PWD/dist/index.js"
 | `read_note` | A note's typed text, tables, attachment list, and which pages hold handwriting |
 | `get_page_image` | A page as an image — this is how Claude reads handwriting |
 | `get_attachment` | An attached photo, or a PDF's text and page images |
+| `save_attachments` | Copies of attached photos and PDFs, saved into a folder under names Claude chooses, only when you ask |
 
 ## Privacy policy
 
 - Your notes are read on your computer. There is no server, no account and no analytics, and the extension makes no network requests.
-- It never changes, moves or deletes a note, and keeps no copies of them.
+- It never changes, moves or deletes a note. It writes files only when you ask it to save attachments: copies, into your Save folder, never overwriting a file.
 - When Claude opens a note, page or attachment during a chat, that content is sent to Claude as part of the chat, like anything you paste, under [Anthropic's privacy policy](https://www.anthropic.com/legal/privacy). Nothing else leaves your computer.
 - Every release bundle is built by this repository's GitHub workflow, with a provenance attestation. Check a download with `gh attestation verify samsung-notes-mcp.mcpb --repo Mhemd139/Samsung_Notes`.
 - Questions: [open an issue](https://github.com/Mhemd139/Samsung_Notes/issues).

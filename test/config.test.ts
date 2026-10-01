@@ -1,8 +1,8 @@
-import { mkdirSync } from "node:fs";
+import { existsSync, mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { join, resolve } from "node:path";
+import { basename, dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { NO_SOURCES_HELP, resolveSources } from "../src/config.js";
+import { NO_SOURCES_HELP, resolveSaveRoot, resolveSources } from "../src/config.js";
 import { tempDir } from "./helpers.js";
 
 function fakeLocalAppData(withNotes: boolean): string {
@@ -60,5 +60,24 @@ describe("resolveSources", () => {
     const localState = join(fakeLocalAppData(true), "Packages", "SAMSUNGELECTRONICSCoLtd.SamsungNotes_wyx1vj98g3asy", "LocalState");
     const setup = resolveSources({ SAMSUNG_NOTES_APP_DIR: localState }, [], "darwin");
     expect(setup.sources.map((s) => s.name)).toEqual(["Samsung Notes for Windows"]);
+  });
+});
+
+describe("resolveSaveRoot", () => {
+  it("uses --save-dir first, then the environment", () => {
+    const dir = tempDir("sn-save-dir");
+    expect(resolveSaveRoot({ SAMSUNG_NOTES_SAVE_DIR: "/elsewhere" }, ["--save-dir", dir], "linux")).toBe(resolve(dir));
+    expect(resolveSaveRoot({ SAMSUNG_NOTES_SAVE_DIR: dir }, [], "linux")).toBe(resolve(dir));
+  });
+
+  it("defaults to Documents/Samsung Notes, ignoring an unfilled extension placeholder", () => {
+    const root = resolveSaveRoot({ SAMSUNG_NOTES_SAVE_DIR: "${user_config.save_dir}" }, [], "darwin");
+    expect(root).toBe(join(homedir(), "Documents", "Samsung Notes"));
+  });
+
+  it.runIf(process.platform === "win32")("finds Windows' Documents folder", () => {
+    const root = resolveSaveRoot({}, [], "win32");
+    expect(basename(root)).toBe("Samsung Notes");
+    expect(existsSync(dirname(root))).toBe(true);
   });
 });

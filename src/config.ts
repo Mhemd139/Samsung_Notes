@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -11,6 +12,7 @@ export interface SourceSetup {
 }
 
 const APP_PACKAGE = /^SAMSUNGELECTRONICSCoLtd\.SamsungNotes_/i;
+const DOCUMENTS_COMMAND = "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); [Environment]::GetFolderPath('MyDocuments')";
 
 export const NO_SOURCES_HELP = [
   "No Samsung Notes found.",
@@ -29,6 +31,32 @@ export function resolveSources(
   const exportsDir = setting(flagValue(argv, "--exports")) ?? setting(env.SAMSUNG_NOTES_EXPORTS_DIR);
   if (exportsDir) sources.push(exportsFolderSource(exportsDir));
   return { sources, problems: sources.length === 0 ? [NO_SOURCES_HELP] : [] };
+}
+
+export function resolveSaveRoot(env: NodeJS.ProcessEnv, argv: string[], platform: NodeJS.Platform = process.platform): string {
+  return (
+    setting(flagValue(argv, "--save-dir")) ??
+    setting(env.SAMSUNG_NOTES_SAVE_DIR) ??
+    join(documentsFolder(platform), "Samsung Notes")
+  );
+}
+
+// Windows' real Documents folder, which OneDrive may have moved. reg.exe would garble non-ASCII paths (OEM code page).
+function documentsFolder(platform: NodeJS.Platform): string {
+  if (platform === "win32") {
+    try {
+      const folder = execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", DOCUMENTS_COMMAND], {
+        encoding: "utf8",
+        windowsHide: true,
+        timeout: 15_000,
+      }).trim();
+      if (!folder) throw new Error("PowerShell returned no folder");
+      return folder;
+    } catch (err) {
+      console.error("samsung-notes-mcp: couldn't find the Documents folder; using ~/Documents:", err);
+    }
+  }
+  return join(homedir(), "Documents");
 }
 
 function setting(value: string | undefined): string | undefined {

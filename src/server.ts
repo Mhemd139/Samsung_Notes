@@ -6,12 +6,14 @@ import { NO_FOLDER, type Catalog, type ListResult, type NoteEntry, type Overview
 import { describeError, NoteError } from "./errors.js";
 import { cropToInk, imageForClaude, imageParts, MAX_IMAGE_BYTES, pageParts, renderPage } from "./images.js";
 import { PDF_BUDGET_BYTES, readPdf } from "./pdf.js";
+import { fileNameFor, openSaveFolder, subfolders } from "./save.js";
 import { renderPageSvg } from "./sdocx.js";
+import type { AttachmentInfo } from "./sources/types.js";
 import { cutText, formatDate, formatDateTime, formatPageRanges } from "./text.js";
 
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 
-export const TOOL_NAMES = ["get_attachment", "get_page_image", "list_notes", "notes_overview", "read_note"] as const;
+export const TOOL_NAMES = ["get_attachment", "get_page_image", "list_notes", "notes_overview", "read_note", "save_attachments"] as const;
 
 const READ_ONLY = { readOnlyHint: true, openWorldHint: false } as const;
 const DEFAULT_LIMIT = 50;
@@ -19,13 +21,14 @@ const MAX_LIMIT = 200;
 const DEFAULT_PDF_PAGES = 5;
 const MAX_PDF_PAGES = 20;
 const MAX_TEXT_CHARS = 250_000;
+const MAX_SAVE_ITEMS = 50;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const NO_NOTES_HINT = "No notes are available yet. Call notes_overview: it says where notes come from and how to set them up.";
 const NO_MATCH_HINT =
   "No notes matched. Handwriting isn't searchable: try a folder, dates or has_handwriting=true instead, then open pages with get_page_image.";
 
 const INSTRUCTIONS = [
-  "Read-only access to the user's Samsung Notes: typed text, tables, handwritten pages, and attached photos and PDFs. Nothing here can change a note.",
+  "Access to the user's Samsung Notes: typed text, tables, handwritten pages, and attached photos and PDFs. Nothing here can change a note; save_attachments only saves copies of attachments into the user's Save folder, when the user asks.",
   "",
   "Which tool, when:",
   "- Start of a task, or \"what's in my notes?\": notes_overview shows sources, folders, totals and problems.",
@@ -36,6 +39,8 @@ const INSTRUCTIONS = [
   "- Dates: a note's date is its last edit, not the date printed on an invoice or receipt. For invoice dates, amounts or vendors, read the files with get_attachment; list_notes words don't search inside photos or PDFs.",
   "- Overlapping parts: each part begins with the last lines of the one before. Read every part before taking figures, and count a repeated line once.",
   "- Go through everything (e.g. \"put all my invoices in a spreadsheet\"): repeat list_notes with next_offset until it stops returning one, open every note and file you need, then build the table, summary or file yourself.",
+  "- Save or organise attachments into a folder (e.g. \"put my invoices in a folder\"), only when the user asks: first call save_attachments with check_only=true for the files you plan to save, skip the ones already there (a job continued from an earlier chat), and reuse a folder it lists. Then open each remaining file with get_attachment and save as you go, up to 50 files per call. Name files \"YYYY-MM-DD Vendor Total Currency\" (e.g. \"2025-03-14 Shufersal 245.90 ILS\") from the date, vendor and total printed on the document. Write \"unknown\" for any part you can't read; never guess.",
+  "- Before the first save, tell the user their app may ask permission to save files, and that allowing it always avoids repeat prompts. When done, tell them how many files were saved, the folder path, and which files to check by hand (any with \"unknown\" or hard to read).",
   "- Nothing matched: try a folder, dates or has_handwriting=true instead of words, then look at the pages.",
   "- A note is locked or unreadable: tell the user (locked notes must be unlocked in Samsung Notes) and move on.",
 ].join("\n");
@@ -51,7 +56,7 @@ const image = (data: Uint8Array, mimeType: string): Content[number] => ({
 const partNote = (part: number, parts: number, next: string): string =>
   parts === 1 ? "" : ` (part ${part} of ${parts}${part < parts ? `; call again with ${next} for the next` : ""})`;
 
-export function createServer(catalog: Catalog): McpServer {
+export function createServer(catalog: Catalog, saveRoot: () => string): McpServer {
   const server = new McpServer({ name: "samsung-notes", version }, { instructions: INSTRUCTIONS });
 
   const respond = async (produce: () => Promise<Content> | Content): Promise<CallToolResult> => {
@@ -69,6 +74,17 @@ export function createServer(catalog: Catalog): McpServer {
     const entry = catalog.get(id);
     if (!entry) throw new NoteError(`No note with id “${id}”. Use list_notes to find note ids.`);
     return entry;
+  };
+
+  const requireAttachment = (id: string, file: string): { entry: NoteEntry; attachment: AttachmentInfo } => {
+    const entry = requireNote(id);
+    if (entry.locked) throw new NoteError(`“${entry.title}”: ${entry.problem}`);
+    const attachment = entry.attachments.find((a) => a.file === file);
+    if (!attachment) {
+      const available = entry.attachments.map((a) => a.file).join(", ") || "none";
+      throw new NoteError(`“${entry.title}” has no attachment named “${file}”. Its attachments: ${available}.`);
+    }
+    return { entry, attachment };
   };
 
   const requireReadable = (id: string): NoteEntry => {
@@ -207,13 +223,7 @@ export function createServer(catalog: Catalog): McpServer {
     },
     ({ id, file, pages, as_images, part }) =>
       respond(async () => {
-        const entry = requireNote(id);
-        if (entry.locked) throw new NoteError(`“${entry.title}”: ${entry.problem}`);
-        const attachment = entry.attachments.find((a) => a.file === file);
-        if (!attachment) {
-          const available = entry.attachments.map((a) => a.file).join(", ") || "none";
-          throw new NoteError(`“${entry.title}” has no attachment named “${file}”. Its attachments: ${available}.`);
-        }
+        const { entry, attachment } = requireAttachment(id, file);
         const bytes = await catalog.ref(id)!.readAttachment(file);
         if (attachment.mimeType.startsWith("image/")) {
           const parts = imageParts(bytes);
@@ -223,6 +233,81 @@ export function createServer(catalog: Catalog): McpServer {
         }
         if (attachment.mimeType === "application/pdf") return pdfContent(entry, file, bytes, pages, as_images, part);
         throw new NoteError(`Can't open “${file}” (${attachment.mimeType}). Photos (JPEG, PNG, GIF, WebP) and PDFs are supported.`);
+      }),
+  );
+
+  server.registerTool(
+    "save_attachments",
+    {
+      title: "Save attachments to a folder",
+      description:
+        "Save copies of photos and PDFs attached to notes, such as invoices, receipts and scans, into a folder inside the user's Save folder, under names you choose. Use it only when the user asks to save, collect or organise files. Notes are never changed and no file is overwritten: a taken name gets “ (2)”, and a file whose contents are already in the folder is skipped, so repeating a call is safe. With check_only=true nothing is written: it says which files are already there, so a continued job skips them without opening them.",
+      inputSchema: {
+        folder: z
+          .string()
+          .min(1)
+          .describe("Folder inside the Save folder, e.g. “Invoices 2025” or “Invoices/2025”. A relative name, not a full path; created when the first file is saved."),
+        items: z
+          .array(
+            z.object({
+              id: z.string().describe("Note id from list_notes."),
+              file: z.string().describe("Attachment file name from read_note or list_notes."),
+              name: z
+                .string()
+                .optional()
+                .describe("New file name without extension, e.g. “2025-03-14 Shufersal 245.90 ILS”. The original extension is kept. Default: the original name."),
+            }),
+          )
+          .min(1)
+          .max(MAX_SAVE_ITEMS)
+          .describe(`Files to save, up to ${MAX_SAVE_ITEMS}.`),
+        check_only: z
+          .boolean()
+          .default(false)
+          .describe("Write nothing; only say which files are already in the folder. Use it before opening files to save, and when continuing an earlier job."),
+      },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+    },
+    ({ folder, items, check_only }) =>
+      respond(async () => {
+        const target = await openSaveFolder(saveRoot(), folder);
+        const lines = [`Folder: ${target.path}`];
+        if (check_only && !target.exists) {
+          lines.push(`This folder doesn't exist yet. Folders in the Save folder: ${(await subfolders(saveRoot())).join(", ") || "none"}.`);
+        }
+        let saved = 0;
+        let there = 0;
+        let failed = 0;
+        for (const [index, item] of items.entries()) {
+          const label = `${index + 1}. “${item.file}”`;
+          try {
+            const { attachment } = requireAttachment(item.id, item.file);
+            if (!attachment.mimeType.startsWith("image/") && attachment.mimeType !== "application/pdf") {
+              throw new NoteError("Only photos (JPEG, PNG, GIF, WebP) and PDFs can be saved.");
+            }
+            const bytes = await catalog.ref(item.id)!.readAttachment(item.file);
+            const existing = await target.find(bytes);
+            if (existing) {
+              there++;
+              lines.push(`${label} already there as “${existing}”`);
+            } else if (check_only) {
+              lines.push(`${label} not saved yet`);
+            } else {
+              lines.push(`${label} saved as “${await target.write(bytes, fileNameFor(item.file, item.name))}”`);
+              saved++;
+            }
+          } catch (err) {
+            if (!(err instanceof NoteError)) console.error("samsung-notes-mcp:", err);
+            failed++;
+            lines.push(`${label} failed: ${err instanceof NoteError ? err.message : describeError(err)}`);
+          }
+        }
+        lines.push(
+          check_only
+            ? `Already there ${there} · not saved yet ${items.length - there - failed} · failed ${failed}.`
+            : `Saved ${saved} · already there ${there} · failed ${failed}.`,
+        );
+        return [text(lines.join("\n"))];
       }),
   );
 

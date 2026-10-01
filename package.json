@@ -1,7 +1,7 @@
 {
   "name": "samsung-notes-mcp",
-  "version": "0.1.0",
-  "description": "Let Claude read your Samsung Notes: typed text, handwriting pages, photos and PDFs. Read-only MCP server.",
+  "version": "0.1.1",
+  "description": "Let Claude read your Samsung Notes: typed text, handwriting pages, photos and PDFs. MCP server that never changes your notes.",
   "type": "module",
   "bin": {
     "samsung-notes-mcp": "dist/index.js"

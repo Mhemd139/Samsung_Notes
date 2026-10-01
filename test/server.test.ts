@@ -1,4 +1,4 @@
-import { copyFileSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
@@ -19,10 +19,10 @@ const PHOTO = "0@paste_260914_153237_553.png";
 const MAX_API_EDGE = 2000;
 let client: Client;
 
-async function connect(catalog: Catalog): Promise<Client> {
+async function connect(catalog: Catalog, saveRoot = tempDir("sn-server-saves")): Promise<Client> {
   const connected = new Client({ name: "test", version: "1.0.0" });
   const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
-  await Promise.all([createServer(catalog).connect(serverTransport), connected.connect(clientTransport)]);
+  await Promise.all([createServer(catalog, () => saveRoot).connect(serverTransport), connected.connect(clientTransport)]);
   return connected;
 }
 
@@ -50,10 +50,12 @@ beforeAll(async () => {
 });
 
 describe("tools/list", () => {
-  it("offers five read-only tools", async () => {
+  it("offers four read-only tools and one that only saves copies", async () => {
     const { tools } = await client.listTools();
     expect(tools.map((t) => t.name).sort()).toEqual([...TOOL_NAMES]);
-    expect(tools.every((t) => t.annotations?.readOnlyHint === true)).toBe(true);
+    const writing = tools.filter((t) => t.annotations?.readOnlyHint !== true);
+    expect(writing.map((t) => t.name)).toEqual(["save_attachments"]);
+    expect(writing[0]!.annotations).toMatchObject({ readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false });
   });
 });
 
@@ -69,6 +71,15 @@ describe("instructions", () => {
     const { properties } = tools.find((t) => t.name === "list_notes")!.inputSchema as { properties: Record<string, { description: string }> };
     expect(properties.modified_after!.description).toContain("last edit");
     expect(properties.modified_before!.description).toContain("last edit");
+  });
+
+  it("tell the agent to check before saving, never to guess a name, and what to report", () => {
+    const instructions = client.getInstructions() ?? "";
+    expect(instructions).toContain("Nothing here can change a note");
+    expect(instructions).toContain("check_only=true");
+    expect(instructions).toContain("YYYY-MM-DD Vendor Total Currency");
+    expect(instructions).toContain("never guess");
+    expect(instructions).toMatch(/how many files were saved, the folder path/);
   });
 });
 
@@ -445,5 +456,105 @@ describe("get_attachment", () => {
       expect(result.isError).toBe(true);
       expect(result.text).toContain("Photos (JPEG, PNG, GIF, WebP) and PDFs are supported.");
     });
+  });
+});
+
+describe("save_attachments", () => {
+  const ID = "file:Receipts.sdocx";
+  const PDF = "7@invoice.pdf";
+  const FOLDER = "קבלות מס";
+  let notesRoot: string;
+  let saveRoot: string;
+  let saver: Client;
+  let note: Uint8Array;
+
+  beforeAll(async () => {
+    notesRoot = tempDir("sn-server-save-notes");
+    saveRoot = tempDir("sn-server-save");
+    note = zipSync({
+      ...unzipSync(fixtureBytes("03-image-placement.sdocx")),
+      [`media/${PDF}`]: makePdf([TEXT_PAGE]),
+      "media/memo.txt": new TextEncoder().encode("hello"),
+    });
+    writeFileSync(join(notesRoot, "Receipts.sdocx"), note);
+    saver = await connect(new Catalog(() => ({ sources: [exportsFolderSource(notesRoot)], problems: [] })), saveRoot);
+  });
+
+  const saved = (folder: string): string[] => readdirSync(join(saveRoot, folder)).sort();
+  const attachment = (file: string): Uint8Array => unzipSync(note)[`media/${file}`]!;
+
+  it("saves copies under the given names and leaves the note untouched", async () => {
+    const result = await call(
+      "save_attachments",
+      { folder: FOLDER, items: [{ id: ID, file: PHOTO, name: "2025-03-14 שופרסל 245.90 ILS" }, { id: ID, file: PDF }] },
+      saver,
+    );
+    expect(result.isError).toBeFalsy();
+    expect(result.text).toContain(join(saveRoot, FOLDER));
+    expect(result.text).toContain("Saved 2");
+    expect(saved(FOLDER)).toEqual(["2025-03-14 שופרסל 245.90 ILS.png", "invoice.pdf"]);
+    expect(readFileSync(join(saveRoot, FOLDER, "invoice.pdf"))).toEqual(Buffer.from(attachment(PDF)));
+    expect(readFileSync(join(notesRoot, "Receipts.sdocx"))).toEqual(Buffer.from(note));
+  });
+
+  it("skips files already in the folder, so a re-run writes nothing new", async () => {
+    const result = await call("save_attachments", { folder: FOLDER, items: [{ id: ID, file: PHOTO, name: "Other name" }] }, saver);
+    expect(result.text).toContain("already there as “2025-03-14 שופרסל 245.90 ILS.png”");
+    expect(saved(FOLDER)).toHaveLength(2);
+  });
+
+  it("with check_only, writes nothing and says what is already there", async () => {
+    const result = await call("save_attachments", { folder: FOLDER, check_only: true, items: [{ id: ID, file: PHOTO }, { id: ID, file: PDF }] }, saver);
+    expect(result.text).toContain("already there as “2025-03-14 שופרסל 245.90 ILS.png”");
+    expect(result.text).toContain("already there as “invoice.pdf”");
+    expect(saved(FOLDER)).toHaveLength(2);
+  });
+
+  it("with check_only on a new folder, creates nothing and lists the folders already there", async () => {
+    const result = await call("save_attachments", { folder: "Receipts", check_only: true, items: [{ id: ID, file: PHOTO }] }, saver);
+    expect(result.text).toContain("not saved yet");
+    expect(result.text).toContain(`Folders in the Save folder: ${FOLDER}`);
+    expect(existsSync(join(saveRoot, "Receipts"))).toBe(false);
+  });
+
+  it("reports a failed item and still saves the rest", async () => {
+    const result = await call(
+      "save_attachments",
+      { folder: "Mixed", items: [{ id: ID, file: "memo.txt" }, { id: ID, file: "nope.jpg" }, { id: "file:none.sdocx", file: PHOTO }, { id: ID, file: PHOTO }] },
+      saver,
+    );
+    expect(result.isError).toBeFalsy();
+    expect(result.text).toContain("Only photos (JPEG, PNG, GIF, WebP) and PDFs can be saved.");
+    expect(result.text).toContain(`Its attachments: ${PHOTO}`);
+    expect(result.text).toContain("No note with id “file:none.sdocx”");
+    expect(result.text).toContain("Saved 1 · already there 0 · failed 3");
+    expect(saved("Mixed")).toEqual(["paste_260914_153237_553.png"]);
+  });
+
+  it("explains a folder name that is taken by a file", async () => {
+    writeFileSync(join(saveRoot, "taken"), "x");
+    const result = await call("save_attachments", { folder: "taken", items: [{ id: ID, file: PHOTO }] }, saver);
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain("is a file, not a folder");
+  });
+
+  it("refuses a folder outside the Save folder", async () => {
+    const result = await call("save_attachments", { folder: "../escape", items: [{ id: ID, file: PHOTO }] }, saver);
+    expect(result.isError).toBe(true);
+    expect(result.text).toContain("isn't a folder name inside the Save folder");
+    expect(existsSync(join(saveRoot, "..", "escape"))).toBe(false);
+  });
+
+  it("refuses a locked note", async () => {
+    const localState = await makeLocalState(
+      tempDir("sn-server-save-win"),
+      [{ uuid: "lock", fixture: "03-image-placement.sdocx", locked: true, title: "Bank" }],
+      [],
+    );
+    const lockedRoot = tempDir("sn-server-save-locked");
+    const windows = await connect(new Catalog(() => ({ sources: [windowsAppSource(localState)], problems: [] })), lockedRoot);
+    const result = await call("save_attachments", { folder: "Bank", items: [{ id: "lock", file: PHOTO }] }, windows);
+    expect(result.text).toContain("“Bank”: This note is locked in Samsung Notes.");
+    expect(existsSync(join(lockedRoot, "Bank"))).toBe(false);
   });
 });
