@@ -14,11 +14,13 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - run: npm run typecheck
       - run: npm test
       - run: npm run pack:mcpb
       - run: cp samsung-notes-mcp-*.mcpb samsung-notes-mcp.mcpb
       - uses: softprops/action-gh-release@v2
         with:
+          prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
             samsung-notes-mcp.mcpb
             samsung-notes-mcp-*.mcpb
