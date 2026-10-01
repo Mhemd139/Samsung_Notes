@@ -7,7 +7,7 @@ import { describeError, NoteError } from "./errors.js";
 import { imageForClaude, pageParts, renderPage } from "./images.js";
 import { readPdf } from "./pdf.js";
 import { renderPageSvg } from "./sdocx.js";
-import { formatDate, formatDateTime, formatPageRanges } from "./text.js";
+import { cutText, formatDate, formatDateTime, formatPageRanges } from "./text.js";
 
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 
@@ -18,7 +18,7 @@ const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
 const DEFAULT_PDF_PAGES = 5;
 const MAX_PDF_PAGES = 20;
-const MAX_TEXT_CHARS = 100_000;
+const MAX_TEXT_CHARS = 250_000;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const NO_NOTES_HINT = "No notes are available yet. Call notes_overview: it says where notes come from and how to set them up.";
 const NO_MATCH_HINT =
@@ -229,7 +229,7 @@ async function pdfContent(entry: NoteEntry, file: string, bytes: Uint8Array, pag
   const rest = pdf.pageCount > Math.max(0, ...shown) ? ` Call again with pages=[${Math.max(0, ...shown) + 1}, …] for more.` : "";
   const content: Content = [text(`PDF “${file}” from “${entry.title}”: ${pdf.pageCount} pages. Showing ${shown.join(", ") || "none"}.${rest}`)];
   for (const page of pdf.pages) {
-    content.push(text(`--- Page ${page.number} ---\n${page.text ? limit(page.text) : "(no text layer; see the image)"}`));
+    content.push(text(`--- Page ${page.number} ---\n${page.text ? cutText(page.text, MAX_TEXT_CHARS) : "(no text layer; see the image)"}`));
     if (page.image) content.push(image(page.image, "image/jpeg"));
   }
   return content;
@@ -274,7 +274,7 @@ function formatNote(entry: NoteEntry): string {
     lines.push(`Attachments (open with get_attachment): ${list}`);
   }
   if (entry.problem) return [...lines, "", entry.problem].join("\n");
-  return [...lines, "", entry.text ? limit(entry.text) : noTextBody(entry)].join("\n");
+  return [...lines, "", entry.text ? cutText(entry.text, MAX_TEXT_CHARS) : noTextBody(entry)].join("\n");
 }
 
 function noTextBody(entry: NoteEntry): string {
@@ -291,9 +291,6 @@ function dayStart(date: string, addDays = 0): number {
   }
   return new Date(year, month - 1, day + addDays).getTime();
 }
-
-const limit = (value: string): string =>
-  value.length > MAX_TEXT_CHARS ? `${value.slice(0, MAX_TEXT_CHARS)}\n…(cut at ${MAX_TEXT_CHARS.toLocaleString("en-US")} characters)` : value;
 
 const formatBytes = (bytes: number): string =>
   bytes >= 1e6 ? `${(bytes / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1e3))} KB`;

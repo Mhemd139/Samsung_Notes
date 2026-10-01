@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inspectNote } from "../src/sdocx.js";
-import { buildNoteText, formatDate, formatPageRanges, noteTitle } from "../src/text.js";
+import { buildNoteText, cutText, formatDate, formatPageRanges, noteTitle } from "../src/text.js";
 import { fixtureBytes } from "./helpers.js";
 
 const textOf = (name: string, files: string[] = []) => {
@@ -95,6 +95,22 @@ describe("noteTitle", () => {
     const title = noteTitle({ ...base, text: `${"x".repeat(78)}😀${"x".repeat(50)}` });
     expect(title).not.toMatch(/[\uD800-\uDFFF]/u);
     expect(title).toBe(`${"x".repeat(78)}😀…`);
+  });
+});
+
+describe("cutText", () => {
+  it("leaves text within the limit alone", () => {
+    expect(cutText("abc", 3)).toBe("abc");
+  });
+
+  it("cuts longer text at the limit and says so", () => {
+    expect(cutText("x".repeat(1001), 1000)).toBe(`${"x".repeat(1000)}\n…(cut at 1,000 characters)`);
+  });
+
+  it("never keeps half of a surrogate pair", () => {
+    const text = "ab\u{1F600}cd";
+    expect(cutText(text, 3)).toBe("ab\n…(cut at 3 characters)");
+    expect(cutText(text, 4)).toBe("ab\u{1F600}\n…(cut at 4 characters)");
   });
 });
 

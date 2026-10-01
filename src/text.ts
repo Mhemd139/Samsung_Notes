@@ -2,6 +2,8 @@ import type { TextSpan } from "./sdocx.js";
 
 const OBJECT_CHAR = "￼";
 const MAX_TITLE_LENGTH = 80;
+const HIGH_SURROGATE_FIRST = 0xd800;
+const HIGH_SURROGATE_LAST = 0xdbff;
 const ENTITIES: Record<string, string> = {
   "&lt;": "<",
   "&gt;": ">",
@@ -51,6 +53,13 @@ export function noteTitle({ title, indexTitle, text, modifiedMs }: TitleParts): 
   const chosen = title.trim() || indexTitle?.trim() || firstLine(text);
   if (chosen) return truncate(chosen);
   return modifiedMs === null ? "Untitled note" : `Untitled note (${formatDate(modifiedMs)})`;
+}
+
+export function cutText(value: string, max: number): string {
+  if (value.length <= max) return value;
+  const lastKept = value.charCodeAt(max - 1);
+  const end = lastKept >= HIGH_SURROGATE_FIRST && lastKept <= HIGH_SURROGATE_LAST ? max - 1 : max;
+  return `${value.slice(0, end)}\n…(cut at ${max.toLocaleString("en-US")} characters)`;
 }
 
 const pad = (n: number): string => String(n).padStart(2, "0");
