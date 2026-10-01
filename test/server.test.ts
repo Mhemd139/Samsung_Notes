@@ -5,6 +5,7 @@ import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { unzipSync, zipSync } from "fflate";
 import { beforeAll, describe, expect, it } from "vitest";
 import { Catalog } from "../src/catalog.js";
+import { imageSize } from "../src/images.js";
 import { createServer, TOOL_NAMES } from "../src/server.js";
 import { exportsFolderSource } from "../src/sources/exportsFolder.js";
 import { windowsAppSource } from "../src/sources/windowsApp.js";
@@ -14,6 +15,7 @@ import { makeLocalState } from "./windowsFixture.js";
 
 type Block = { type: string; text?: string; data?: string; mimeType?: string };
 const PHOTO = "0@paste_260914_153237_553.png";
+const MAX_API_EDGE = 2000;
 let client: Client;
 
 async function connect(catalog: Catalog): Promise<Client> {
@@ -27,6 +29,11 @@ async function call(name: string, args: Record<string, unknown> = {}, from: Clie
   const result = (await from.callTool({ name, arguments: args })) as { content: Block[]; isError?: boolean };
   const size = result.content.reduce((sum, block) => sum + (block.data?.length ?? 0) + Buffer.byteLength(block.text ?? ""), 0);
   expect(size).toBeLessThan(1_000_000);
+  for (const block of result.content.filter((b) => b.type === "image")) {
+    const dimensions = imageSize(Buffer.from(block.data!, "base64"));
+    expect(dimensions).toBeDefined();
+    expect(Math.max(dimensions!.width, dimensions!.height)).toBeLessThanOrEqual(MAX_API_EDGE);
+  }
   return { ...result, text: result.content.filter((b) => b.type === "text").map((b) => b.text).join("\n") };
 }
 

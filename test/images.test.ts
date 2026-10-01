@@ -27,13 +27,19 @@ const WHITE: Rgb = [255, 255, 255];
 const PNG_HEADER_BYTES = 33;
 const EXIF_ID = Buffer.from("Exif\0\0", "latin1");
 
-const paintedJpeg = (width: number, height: number, colourAt: (x: number, y: number) => Rgb): Uint8Array => {
+const paintedRgba = (width: number, height: number, colourAt: (x: number, y: number) => Rgb): Buffer => {
   const data = Buffer.alloc(width * height * 4, 255);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) data.set(colourAt(x, y), (y * width + x) * 4);
   }
-  return jpeg.encode({ width, height, data }, 90).data;
+  return data;
 };
+
+const paintedJpeg = (width: number, height: number, colourAt: (x: number, y: number) => Rgb): Uint8Array =>
+  jpeg.encode({ width, height, data: paintedRgba(width, height, colourAt) }, 90).data;
+
+const paintedPng = (width: number, height: number, colourAt: (x: number, y: number) => Rgb): Uint8Array =>
+  encode({ width, height, data: paintedRgba(width, height, colourAt), channels: 4 });
 
 const noisyJpeg = (width: number, height: number): Uint8Array => jpeg.encode({ width, height, data: randomBytes(width * height * 4) }, 80).data;
 
@@ -88,9 +94,17 @@ describe("svgToPng", () => {
 });
 
 describe("tall pages", () => {
-  it("keeps normal pages whole", () => {
+  it("keeps pages up to 1.66 times as tall as wide whole, under 2000 px at the standard width", () => {
     expect(pageParts(tallSvg(100, 141))).toBe(1);
-    expect(pageParts(tallSvg(100, 200))).toBe(1);
+    expect(pageParts(tallSvg(100, 166))).toBe(1);
+    expect(imageSize(renderPage(tallSvg(100, 166), 1))).toEqual({ width: IMAGE_WIDTH, height: 1992 });
+  });
+
+  it("splits a page 1.9 times as tall as wide into parts that fit the image limits", () => {
+    const svg = tallSvg(100, 190);
+    expect(pageParts(svg)).toBe(2);
+    expect(imageSize(renderPage(svg, 1))).toEqual({ width: IMAGE_WIDTH, height: 1800 });
+    expect(imageSize(renderPage(svg, 2))).toEqual({ width: IMAGE_WIDTH, height: 480 });
   });
 
   it("slices tall pages into readable parts", () => {
@@ -135,6 +149,23 @@ describe("imageForClaude", () => {
     expect(result.data.length).toBeLessThanOrEqual(MAX_IMAGE_BYTES);
     expect(Math.max(size.width, size.height)).toBeLessThanOrEqual(MAX_IMAGE_EDGE);
     expect(size.width / size.height).toBeCloseTo(width / height, 2);
+  });
+
+  it("re-encodes a phone screenshot that fits the byte limit but is 2400 px tall", () => {
+    const screenshot = paintedPng(1080, 2400, (_, y) => (y < 240 ? BLUE : WHITE));
+    expect(screenshot.length).toBeLessThan(MAX_IMAGE_BYTES);
+    const result = imageForClaude(screenshot, "image/png");
+    const size = imageSize(result.data)!;
+    expect(result.mimeType).toBe("image/jpeg");
+    expect(Math.max(size.width, size.height)).toBeLessThanOrEqual(MAX_IMAGE_EDGE);
+    expect(size.width / size.height).toBeCloseTo(1080 / 2400, 2);
+  });
+
+  it("passes a photo through at 2000 px on its long edge and re-encodes it at 2001", () => {
+    const atLimit = paintedJpeg(2000, 100, () => BLUE);
+    const overLimit = paintedJpeg(2001, 100, () => BLUE);
+    expect(imageForClaude(atLimit, "image/jpeg").data).toBe(atLimit);
+    expect(imageSize(imageForClaude(overLimit, "image/jpeg").data)!.width).toBeLessThanOrEqual(MAX_IMAGE_EDGE);
   });
 
   it("fits a smaller budget when asked", () => {

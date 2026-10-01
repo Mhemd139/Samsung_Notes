@@ -16,6 +16,12 @@ export const BLUE_SQUARE_PAGE: PdfPageSpec = {
   content: "0 0 1 rg 50 50 100 100 re f",
 };
 
+export const TALL_PAGE: PdfPageSpec = {
+  width: 100,
+  height: 800,
+  content: "0 0 1 rg 10 10 80 80 re f",
+};
+
 export function makePdf(pages: PdfPageSpec[]): Uint8Array {
   const objects: string[] = [];
   const pageIds = pages.map((_, i) => 4 + i * 2);

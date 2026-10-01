@@ -5,7 +5,8 @@ import { NoteError } from "./errors.js";
 export const IMAGE_WIDTH = 1200;
 export const MAX_IMAGE_BYTES = 600_000;
 export const MAX_IMAGE_EDGE = 1568;
-const MAX_SINGLE_PART_RATIO = 2;
+const MAX_PASS_THROUGH_EDGE = 2000;
+const MAX_SINGLE_PART_RATIO = 1.66;
 const PART_RATIO = 1.5;
 const JPEG_QUALITY = 80;
 const SHRINK_STEP = 0.8;
@@ -82,14 +83,15 @@ export function imageSize(bytes: Uint8Array): Size | undefined {
 export function imageForClaude(bytes: Uint8Array, mimeType: string, maxBytes = MAX_IMAGE_BYTES): { data: Uint8Array; mimeType: string } {
   const stored = imageSize(bytes);
   const orientation = stored ? exifOrientation(bytes) : 1;
-  if (bytes.length <= maxBytes && orientation === 1) return { data: bytes, mimeType };
+  const overEdgeLimit = stored !== undefined && Math.max(stored.width, stored.height) > MAX_PASS_THROUGH_EDGE;
+  if (bytes.length <= maxBytes && orientation === 1 && !overEdgeLimit) return { data: bytes, mimeType };
   if (!stored) throw new NoteError(`This image is too large to send (${(bytes.length / 1e6).toFixed(1)} MB).`);
   const { svg, width, height } = uprightSvg(bytes, mimeType, stored, orientation);
   const longEdge = Math.max(width, height);
   const minEdge = Math.min(MIN_IMAGE_EDGE, longEdge);
   let edge = Math.min(MAX_IMAGE_EDGE, longEdge);
   while (edge >= minEdge) {
-    const rendered = rasterize(svg, Math.round((width * edge) / longEdge));
+    const rendered = rasterize(svg, Math.floor((width * edge) / longEdge));
     const pixels = rendered.pixels;
     if (pixels.every((byte) => byte === 255)) {
       throw new NoteError("Couldn't read this image. The file may be damaged; open the note in Samsung Notes to check it.");
