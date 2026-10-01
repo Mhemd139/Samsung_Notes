@@ -9,7 +9,7 @@ import { imageSize } from "../src/images.js";
 import { createServer, TOOL_NAMES } from "../src/server.js";
 import { exportsFolderSource } from "../src/sources/exportsFolder.js";
 import { windowsAppSource } from "../src/sources/windowsApp.js";
-import { fixtureBytes, fixturePath, tempDir } from "./helpers.js";
+import { fixtureBytes, fixturePath, tempDir, withoutDates } from "./helpers.js";
 import { BLUE_SQUARE_PAGE, makePdf, TEXT_PAGE } from "./pdfFixture.js";
 import { makeLocalState } from "./windowsFixture.js";
 
@@ -135,6 +135,53 @@ describe("list_notes", () => {
     const result = await call("list_notes", { modified_after: "2026-02-30" });
     expect(result.isError).toBe(true);
     expect(result.text).toMatch(/not a real date/);
+  });
+});
+
+describe("list_notes with notes that have no known date", () => {
+  let undated: Client;
+  const list = async (args: Record<string, unknown>) => JSON.parse((await call("list_notes", args, undated)).text);
+  const idsOf = (data: { notes: { id: string }[] }) => data.notes.map((n) => n.id);
+
+  beforeAll(async () => {
+    const root = tempDir("sn-server-undated");
+    writeFileSync(join(root, "basic.sdocx"), fixtureBytes("01-basic-formatting.sdocx"));
+    writeFileSync(join(root, "marker.sdocx"), fixtureBytes("04-marker4-highlighter.sdocx"));
+    writeFileSync(join(root, "undated.sdocx"), withoutDates("01-basic-formatting.sdocx"));
+    writeFileSync(join(root, "undated-marker.sdocx"), withoutDates("04-marker4-highlighter.sdocx"));
+    undated = await connect(new Catalog(() => ({ sources: [exportsFolderSource(root)], problems: [] })));
+  });
+
+  it("shows their date as unknown and says nothing more without a date filter", async () => {
+    const data = await list({});
+    expect(data.total).toBe(4);
+    expect(data.notes.filter((n: { modified: string }) => n.modified === "unknown")).toHaveLength(2);
+    expect(data.undated_included).toBeUndefined();
+    expect(data.hint).toBeUndefined();
+  });
+
+  it("includes them under modified_after and sorts them last", async () => {
+    const data = await list({ modified_after: "2026-09-01" });
+    expect(idsOf(data)).toEqual(["file:marker.sdocx", "file:undated.sdocx", "file:undated-marker.sdocx"]);
+    expect(data.notes.map((n: { modified: string }) => n.modified === "unknown")).toEqual([false, true, true]);
+  });
+
+  it("includes them under modified_before", async () => {
+    const data = await list({ modified_before: "2026-09-01" });
+    expect(idsOf(data)).toEqual(["file:basic.sdocx", "file:undated.sdocx", "file:undated-marker.sdocx"]);
+  });
+
+  it("says how many it included", async () => {
+    const data = await list({ modified_after: "2026-09-01" });
+    expect(data.undated_included).toBe(2);
+    expect(data.hint).toBe("2 notes have no known date and are included; check their content for dates.");
+  });
+
+  it("says it in the singular for one note", async () => {
+    const data = await list({ modified_after: "2026-09-01", query: "atlas" });
+    expect(idsOf(data)).toEqual(["file:undated.sdocx"]);
+    expect(data.undated_included).toBe(1);
+    expect(data.hint).toBe("1 note has no known date and is included; check its content for dates.");
   });
 });
 

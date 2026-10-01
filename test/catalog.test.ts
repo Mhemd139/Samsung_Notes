@@ -5,7 +5,7 @@ import { Catalog, friendlyProblem, matchesQuery, MAX_LISTED_PROBLEMS, snippet } 
 import { exportsFolderSource } from "../src/sources/exportsFolder.js";
 import type { NoteRef, NoteSource } from "../src/sources/types.js";
 import { windowsAppSource } from "../src/sources/windowsApp.js";
-import { fixtureBytes, fixturePath, tempDir } from "./helpers.js";
+import { fixtureBytes, fixturePath, tempDir, withoutDates } from "./helpers.js";
 import { makeLocalState } from "./windowsFixture.js";
 
 const ALL = { limit: 50, offset: 0 };
@@ -186,10 +186,46 @@ describe("Catalog.list", () => {
     expect(catalog.list({ ...ALL, hasInk: true }).notes.map((n) => n.id)).toEqual(["file:marker.sdocx"]);
   });
 
-  it("filters by modified date", () => {
+  it("filters by modified date, letting through the unreadable note whose date is unknown", () => {
     const basic = catalog.get("file:basic.sdocx")!;
     const hits = catalog.list({ ...ALL, modifiedAfter: basic.modifiedMs!, modifiedBefore: basic.modifiedMs! + 1 });
-    expect(hits.notes.map((n) => n.id)).toEqual(["file:basic.sdocx"]);
+    expect(hits.notes.map((n) => n.id)).toEqual(["file:basic.sdocx", "file:broken.sdocx"]);
+  });
+
+  describe("with a note that has no known date", () => {
+    let mixed: Catalog;
+    let modified: number;
+
+    beforeEach(async () => {
+      mixed = new Catalog(() => ({
+        sources: [
+          memorySource([
+            memoryNote("undated", async () => withoutDates("01-basic-formatting.sdocx")),
+            memoryNote("dated", async () => fixtureBytes("01-basic-formatting.sdocx")),
+          ]),
+        ],
+        problems: [],
+      }));
+      await mixed.refresh();
+      modified = mixed.get("dated")!.modifiedMs!;
+    });
+
+    it("lets it through modified_after and modified_before alike", () => {
+      expect(mixed.get("undated")?.modifiedMs).toBeNull();
+      expect(mixed.list({ ...ALL, modifiedAfter: modified + 1 }).notes.map((n) => n.id)).toEqual(["undated"]);
+      expect(mixed.list({ ...ALL, modifiedBefore: modified }).notes.map((n) => n.id)).toEqual(["undated"]);
+    });
+
+    it("sorts it after the dated notes", () => {
+      expect(mixed.list({ ...ALL, modifiedAfter: modified, modifiedBefore: modified + 1 }).notes.map((n) => n.id)).toEqual(["dated", "undated"]);
+    });
+
+    it("counts the undated notes a date filter let through, and only then", () => {
+      expect(mixed.list({ ...ALL, modifiedAfter: modified + 1 }).undatedIncluded).toBe(1);
+      expect(mixed.list({ ...ALL, modifiedBefore: modified }).undatedIncluded).toBe(1);
+      expect(mixed.list({ ...ALL, modifiedAfter: modified, modifiedBefore: modified + 1 }).undatedIncluded).toBe(1);
+      expect(mixed.list(ALL).undatedIncluded).toBe(0);
+    });
   });
 
   it("sorts newest first and paginates", () => {

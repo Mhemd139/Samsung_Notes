@@ -1,14 +1,7 @@
-import { unzipSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { inspectNote, renderPageSvg } from "../src/sdocx.js";
 import { stripMedia } from "../src/zip.js";
-import { fixtureBytes } from "./helpers.js";
-
-const rezip = (name: string, change: (files: Record<string, Uint8Array>) => void): Uint8Array => {
-  const files = unzipSync(fixtureBytes(name));
-  change(files);
-  return zipSync(files);
-};
+import { fixtureBytes, rezipFixture, withoutDates } from "./helpers.js";
 
 describe("inspectNote", () => {
   it("reads title, text, dates and visible page count", () => {
@@ -34,7 +27,7 @@ describe("inspectNote", () => {
   });
 
   it("reports unknown dates when the end tag's date fields are empty", () => {
-    const bytes = rezip("01-basic-formatting.sdocx", (files) => {
+    const bytes = rezipFixture("01-basic-formatting.sdocx", (files) => {
       files["end_tag.bin"]!.fill(0, 8, 16);
       files["end_tag.bin"]!.fill(0, 46, 54);
     });
@@ -42,10 +35,7 @@ describe("inspectNote", () => {
   });
 
   it("reports unknown dates, not the parser's microsecond values, when there is no end tag", () => {
-    const bytes = rezip("01-basic-formatting.sdocx", (files) => {
-      delete files["end_tag.bin"];
-    });
-    expect(inspectNote(bytes)).toMatchObject({ createdMs: null, modifiedMs: null });
+    expect(inspectNote(withoutDates("01-basic-formatting.sdocx"))).toMatchObject({ createdMs: null, modifiedMs: null });
   });
 
   it.each([

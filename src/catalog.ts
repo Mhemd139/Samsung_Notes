@@ -38,6 +38,12 @@ export interface ListedNote extends NoteEntry {
   snippet?: string;
 }
 
+export interface ListResult {
+  total: number;
+  undatedIncluded: number;
+  notes: ListedNote[];
+}
+
 export interface Overview {
   sources: { name: string; location: string; notes: number }[];
   folders: { name: string; notes: number }[];
@@ -81,7 +87,7 @@ export class Catalog {
     return this.cache.get(id)?.ref;
   }
 
-  list(filter: ListFilter): { total: number; notes: ListedNote[] } {
+  list(filter: ListFilter): ListResult {
     const query = filter.query ?? "";
     const [firstWord] = queryWords(query);
     const folder = normalize(filter.folder ?? "").replace(/^\/+|\/+$/g, "");
@@ -91,14 +97,15 @@ export class Catalog {
           (!folder || inFolder(entry.folder, folder)) &&
           (filter.hasAttachments === undefined || entry.attachments.length > 0 === filter.hasAttachments) &&
           (filter.hasInk === undefined || entry.inkPages.length > 0 === filter.hasInk) &&
-          (filter.modifiedAfter === undefined || (entry.modifiedMs ?? 0) >= filter.modifiedAfter) &&
-          (filter.modifiedBefore === undefined || (entry.modifiedMs ?? 0) < filter.modifiedBefore) &&
+          inDateRange(entry.modifiedMs, filter.modifiedAfter, filter.modifiedBefore) &&
           matchesQuery(entry.title, entry.text, query),
       )
       .sort((a, b) => (b.modifiedMs ?? 0) - (a.modifiedMs ?? 0) || a.title.localeCompare(b.title));
     const page = matches.slice(filter.offset, filter.offset + filter.limit);
+    const dateFiltered = filter.modifiedAfter !== undefined || filter.modifiedBefore !== undefined;
     return {
       total: matches.length,
+      undatedIncluded: dateFiltered ? matches.filter((entry) => entry.modifiedMs === null).length : 0,
       notes: firstWord ? page.map((entry) => ({ ...entry, snippet: snippet(entry.text, firstWord) })) : page,
     };
   }
@@ -216,6 +223,9 @@ export function matchesQuery(title: string, text: string, query: string): boolea
   const haystack = normalize(`${title}\n${text}`);
   return queryWords(query).every((word) => haystack.includes(word));
 }
+
+const inDateRange = (modifiedMs: number | null, after?: number, before?: number): boolean =>
+  modifiedMs === null || ((after === undefined || modifiedMs >= after) && (before === undefined || modifiedMs < before));
 
 const normalize = (value: string): string => value.normalize("NFKC").toLowerCase().trim();
 

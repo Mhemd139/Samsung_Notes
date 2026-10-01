@@ -2,7 +2,7 @@ import { createRequire } from "node:module";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
-import { NO_FOLDER, type Catalog, type NoteEntry, type Overview } from "./catalog.js";
+import { NO_FOLDER, type Catalog, type ListResult, type NoteEntry, type Overview } from "./catalog.js";
 import { describeError, NoteError } from "./errors.js";
 import { imageForClaude, pageParts, renderPage } from "./images.js";
 import { readPdf } from "./pdf.js";
@@ -122,12 +122,13 @@ export function createServer(catalog: Catalog): McpServer {
                 total: result.total,
                 offset: args.offset,
                 next_offset: shown < result.total ? shown : undefined,
-                hint: result.total === 0 ? emptyResultHint(catalog) : undefined,
+                undated_included: result.undatedIncluded || undefined,
+                hint: listHint(catalog, result),
                 notes: result.notes.map((note) => ({
                   id: note.id,
                   title: note.title,
                   folder: note.folder || NO_FOLDER,
-                  modified: note.modifiedMs === null ? undefined : formatDate(note.modifiedMs),
+                  modified: note.modifiedMs === null ? "unknown" : formatDate(note.modifiedMs),
                   pages: note.pageCount,
                   handwriting_pages: note.inkPages.length ? formatPageRanges(note.inkPages) : undefined,
                   attachments: note.attachments.length ? note.attachments.map((a) => a.file) : undefined,
@@ -249,7 +250,12 @@ function formatOverview(overview: Overview): string {
   return lines.join("\n");
 }
 
-const emptyResultHint = (catalog: Catalog): string => (catalog.overview().totals.notes === 0 ? NO_NOTES_HINT : NO_MATCH_HINT);
+function listHint(catalog: Catalog, { total, undatedIncluded }: ListResult): string | undefined {
+  if (total === 0) return catalog.overview().totals.notes === 0 ? NO_NOTES_HINT : NO_MATCH_HINT;
+  if (undatedIncluded === 0) return undefined;
+  const one = undatedIncluded === 1;
+  return `${undatedIncluded} ${one ? "note has" : "notes have"} no known date and ${one ? "is" : "are"} included; check ${one ? "its" : "their"} content for dates.`;
+}
 
 function formatNote(entry: NoteEntry): string {
   const facts = [
