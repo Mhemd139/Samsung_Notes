@@ -1,0 +1,24 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm test
+      - run: npm run pack:mcpb
+      - run: cp samsung-notes-mcp-*.mcpb samsung-notes-mcp.mcpb
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            samsung-notes-mcp.mcpb
+            samsung-notes-mcp-*.mcpb

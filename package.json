@@ -18,6 +18,8 @@
     "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
+    "pack:mcpb": "node scripts/pack-mcpb.mjs",
+    "smoke": "node scripts/smoke-local.mjs",
     "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "keywords": [

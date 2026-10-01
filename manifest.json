@@ -1,0 +1,43 @@
+{
+  "manifest_version": "0.3",
+  "name": "samsung-notes-mcp",
+  "display_name": "Samsung Notes Reader",
+  "version": "0.1.0",
+  "description": "Let Claude read your Samsung Notes: typed text, handwriting pages, photos and PDFs such as invoices. Read-only. Unofficial.",
+  "long_description": "Claude can list, search and read your Samsung Notes, see handwritten pages, and open attached photos and PDFs such as invoices and receipts. It works with Samsung Notes for Windows automatically, or with a folder of notes exported from the Samsung Notes phone app. It never changes your notes. Not affiliated with Samsung.",
+  "author": { "name": "Mhemd139", "url": "https://github.com/Mhemd139" },
+  "repository": { "type": "git", "url": "https://github.com/Mhemd139/Samsung_Notes" },
+  "homepage": "https://github.com/Mhemd139/Samsung_Notes",
+  "support": "https://github.com/Mhemd139/Samsung_Notes/issues",
+  "license": "GPL-3.0-only",
+  "icon": "icon.png",
+  "keywords": ["samsung", "notes", "sdocx", "handwriting", "invoices", "pdf"],
+  "server": {
+    "type": "node",
+    "entry_point": "dist/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/dist/index.js"],
+      "env": { "SAMSUNG_NOTES_EXPORTS_DIR": "${user_config.exports_dir}" }
+    }
+  },
+  "tools": [
+    { "name": "notes_overview", "description": "Where notes come from, folders, totals and problems." },
+    { "name": "list_notes", "description": "List or search notes by words, folder, date, attachments or handwriting." },
+    { "name": "read_note", "description": "Read a note's typed text, tables, attachments, and which pages hold handwriting." },
+    { "name": "get_page_image", "description": "See a page as an image, including handwriting." },
+    { "name": "get_attachment", "description": "Open an attached photo or PDF, such as an invoice." }
+  ],
+  "user_config": {
+    "exports_dir": {
+      "type": "directory",
+      "title": "Exported notes folder (optional)",
+      "description": "Leave empty if you use Samsung Notes for Windows. Otherwise choose a folder of .sdocx files exported from the Samsung Notes phone app (select notes → Share → Samsung Notes file).",
+      "required": false
+    }
+  },
+  "compatibility": {
+    "platforms": ["win32", "darwin"],
+    "runtimes": { "node": ">=20.12.0" }
+  }
+}
