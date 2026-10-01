@@ -227,7 +227,9 @@ export function matchesQuery(title: string, text: string, query: string): boolea
 const inDateRange = (modifiedMs: number | null, after?: number, before?: number): boolean =>
   modifiedMs === null || ((after === undefined || modifiedMs >= after) && (before === undefined || modifiedMs < before));
 
-const normalize = (value: string): string => value.normalize("NFKC").toLowerCase().trim();
+const visible = (value: string): string => value.normalize("NFKC").replace(/\p{Cf}/gu, "");
+
+const normalize = (value: string): string => visible(value).toLowerCase().trim();
 
 const queryWords = (query: string): string[] => normalize(query).split(/\s+/).filter(Boolean);
 
@@ -238,7 +240,7 @@ function inFolder(entryFolder: string, folder: string): boolean {
 }
 
 export function snippet(text: string, word: string): string {
-  const flat = text.normalize("NFKC").replace(/\s+/g, " ");
+  const flat = visible(text).replace(/\s+/g, " ");
   const at = flat.toLowerCase().indexOf(word);
   if (at === -1) return flat.slice(0, 2 * SNIPPET_RADIUS);
   const start = Math.max(0, at - SNIPPET_RADIUS);

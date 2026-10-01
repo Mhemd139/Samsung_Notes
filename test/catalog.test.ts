@@ -177,6 +177,13 @@ describe("Catalog.list", () => {
     expect(catalog.list({ ...ALL, folder: "(no folder)" }).total).toBe(3);
   });
 
+  it("finds a folder whose name ends in an invisible character", async () => {
+    const memo = { ...memoryNote("memo", async () => fixtureBytes("02-shapes-and-dot-calibration.sdocx")), folder: "Screen off memo\u{200E}" };
+    const memos = new Catalog(() => ({ sources: [memorySource([memo])], problems: [] }));
+    await memos.refresh();
+    expect(memos.list({ ...ALL, folder: "Screen off memo" }).total).toBe(1);
+  });
+
   it("filters by attachments", () => {
     expect(catalog.list({ ...ALL, hasAttachments: true }).notes.map((n) => n.id)).toEqual(["file:Invoices/2026/Receipt.sdocx"]);
   });
@@ -294,6 +301,7 @@ describe("matchesQuery", () => {
     ["", "فاتورة رقم ٤٢", "فاتورة"],
     ["", "Ｉｎｖｏｉｃｅ", "invoice"],
     ["", "\u{FB01}le", "file"],
+    ["", "In\u{200B}voice", "invoice"],
   ])("finds %s%s by %s", (title, text, query) => {
     expect(matchesQuery(title, text, query)).toBe(true);
   });
@@ -316,6 +324,10 @@ describe("snippet", () => {
 
   it("still finds the word after characters that normalise to two", () => {
     expect(snippet(`${"\u{FEFB}".repeat(100)} invoice`, "invoice")).toContain("invoice");
+  });
+
+  it("finds a word that an invisible character splits", () => {
+    expect(snippet(`${"a ".repeat(100)}In\u{200B}voice 42`, "invoice")).toMatch(/^….*Invoice 42$/);
   });
 });
 
