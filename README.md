@@ -4,28 +4,30 @@ Let Claude read your Samsung Notes: typed text, tables, handwritten pages, and a
 
 It is **read-only**: it never changes, moves or deletes a note. Unofficial; not affiliated with Samsung.
 
-## Install (Claude Desktop, one click)
+## Install (Claude Desktop)
 
-1. Download `samsung-notes-mcp.mcpb` from the [latest release](https://github.com/Mhemd139/Samsung_Notes/releases/latest).
-2. Double-click it. Claude Desktop opens and asks to install. Click **Install**.
-3. Where are your notes?
+1. **[Download samsung-notes-mcp.mcpb](https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb)** and open it. Claude Desktop shows the extension: click **Install**, then **Install** again in the dialog. Nothing else to install; Claude Desktop includes Node.js.
+   - Windows may ask which app opens `.mcpb` files: choose **Claude** and **Always**.
+   - Claude shows a red banner saying the developer isn't verified by Anthropic. That's normal for any extension outside Anthropic's directory; all the code is in this repository.
+   - If opening the file doesn't reach Claude: in Claude Desktop, go to **Settings → Extensions → Advanced settings → Install Extension…** and choose the file.
+2. Where are your notes?
    - **Samsung Notes for Windows** (Galaxy Book, or any PC where it runs): nothing to set. Open Samsung Notes once and sign in so your notes sync.
    - **Everything else (Mac, other PCs)**: on your phone, open Samsung Notes, select notes → **Share** → **Samsung Notes file**, and save the `.sdocx` files into one folder on your computer (Google Drive, OneDrive, USB — any way works). In Claude Desktop, open the extension's settings and choose that folder as **Exported notes folder**. Put new exports in the same folder any time; Claude sees them on the next question.
-4. Start a new chat and ask about your notes.
+3. Start a new chat and ask about your notes.
 
 ## Claude Code
 
-Until the npm package is published, run it from a copy of this repository:
+Until the npm package is published, run it from a copy of this repository (needs Node.js 20.12 or newer):
 
 ```bash
 git clone https://github.com/Mhemd139/Samsung_Notes.git
 cd Samsung_Notes
 npm ci
 npm run build
-claude mcp add samsung-notes -- node "$PWD/dist/index.js"
+claude mcp add --scope user samsung-notes -- node "$PWD/dist/index.js"
 ```
 
-With exported notes, add `--exports "/path/to/folder"` at the end of the last command.
+`--scope user` makes it work in every folder, not only this one. With exported notes, add `--exports "/path/to/folder"` at the end of the last command.
 
 ## Try asking
 
@@ -44,9 +46,12 @@ With exported notes, add `--exports "/path/to/folder"` at the end of the last co
 | `get_page_image` | A page as an image — this is how Claude reads handwriting |
 | `get_attachment` | An attached photo, or a PDF's text and page images |
 
-## Privacy
+## Privacy policy
 
-Your notes are read on your computer. There is no server and no account. When Claude looks at a note during a chat, that content is sent to Claude as part of the chat, like anything you paste. Nothing else leaves your computer.
+- Your notes are read on your computer. There is no server, no account and no analytics, and the extension makes no network requests.
+- It never changes, moves or deletes a note, and keeps no copies of them.
+- When Claude opens a note, page or attachment during a chat, that content is sent to Claude as part of the chat, like anything you paste, under [Anthropic's privacy policy](https://www.anthropic.com/legal/privacy). Nothing else leaves your computer.
+- Questions: [open an issue](https://github.com/Mhemd139/Samsung_Notes/issues).
 
 ## Limits
 
@@ -58,7 +63,7 @@ Your notes are read on your computer. There is no server and no account. When Cl
 
 ## Troubleshooting
 
-- **“No Samsung Notes found”**: see step 3 of Install.
+- **“No Samsung Notes found”**: see step 2 of Install.
 - **“No notes yet” or “Folder not found”**: let Samsung Notes finish syncing, or create the folder. No restart needed; Claude sees the notes on the next question.
 - **A note is missing**: notes in the recycle bin are skipped. New notes appear on the next question — no restart needed.
 - **Ask Claude to run `notes_overview`**: it lists every problem it found.
