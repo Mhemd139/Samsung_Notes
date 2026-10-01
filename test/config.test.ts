@@ -1,8 +1,9 @@
-import { existsSync, mkdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { basename, dirname, join, resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { NO_SOURCES_HELP, resolveSaveRoot, resolveSources } from "../src/config.js";
+import { NO_SOURCES_HELP, personalFolder, resolveSaveRoot, resolveSources } from "../src/config.js";
 import { tempDir } from "./helpers.js";
 
 function fakeLocalAppData(withNotes: boolean): string {
@@ -75,9 +76,33 @@ describe("resolveSaveRoot", () => {
     expect(root).toBe(join(homedir(), "Documents", "Samsung Notes"));
   });
 
-  it.runIf(process.platform === "win32")("finds Windows' Documents folder", () => {
-    const root = resolveSaveRoot({}, [], "win32");
-    expect(basename(root)).toBe("Samsung Notes");
-    expect(existsSync(dirname(root))).toBe(true);
+  it.runIf(process.platform === "win32")(
+    "finds the same Documents folder as Windows itself, even one OneDrive moved",
+    () => {
+      const command = "[Console]::OutputEncoding = [Text.UTF8Encoding]::new($false); [Environment]::GetFolderPath('MyDocuments')";
+      const documents = execFileSync("powershell", ["-NoProfile", "-NonInteractive", "-Command", command], { encoding: "utf8" }).trim();
+      expect(resolveSaveRoot({}, [], "win32")).toBe(join(documents, "Samsung Notes"));
+    },
+    120_000,
+  );
+});
+
+describe("personalFolder", () => {
+  const exported = (value: string): string =>
+    `\uFEFFWindows Registry Editor Version 5.00\r\n\r\n[HKEY_CURRENT_USER\\Software]\r\n"Desktop"="C:\\\\Desk"\r\n${value}\r\n"PrintHood"=hex(2):25,00\r\n`;
+
+  it("reads a REG_EXPAND_SZ path that reg export wrapped over lines, Hebrew included", () => {
+    const path = "C:\\Users\\משה\\OneDrive\\Documents";
+    const bytes = [...Buffer.from(`${path}\0`, "utf16le")].map((b) => b.toString(16).padStart(2, "0")).join(",");
+    const wrapped = bytes.replace(/((?:[0-9a-f]{2},){20})/g, "$1\\\r\n  ");
+    expect(personalFolder(exported(`"Personal"=hex(2):${wrapped}`))).toBe(path);
+  });
+
+  it("reads a plain REG_SZ path", () => {
+    expect(personalFolder(exported(String.raw`"Personal"="D:\\Docs \"2026\""`))).toBe('D:\\Docs "2026"');
+  });
+
+  it("finds nothing without a Personal value", () => {
+    expect(personalFolder(exported(""))).toBeUndefined();
   });
 });

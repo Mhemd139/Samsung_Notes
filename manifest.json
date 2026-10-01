@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "samsung-notes-mcp",
   "display_name": "Samsung Notes Reader",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Let Claude read your Samsung Notes: typed text, handwriting pages, photos and PDFs such as invoices. Never changes your notes. Unofficial.",
   "long_description": "Claude can list, search and read your Samsung Notes, see handwritten pages, and open attached photos and PDFs such as invoices and receipts. When you ask, it saves renamed copies of attachments into a folder, for example every invoice named by date, vendor and total. It works with Samsung Notes for Windows automatically, or with a folder of notes exported from the Samsung Notes phone app. It never changes your notes. Not affiliated with Samsung.",
   "author": { "name": "Mhemd139", "url": "https://github.com/Mhemd139" },
