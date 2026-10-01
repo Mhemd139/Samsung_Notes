@@ -93,7 +93,7 @@ export function imageForClaude(bytes: Uint8Array, mimeType: string, maxBytes = M
   while (edge >= minEdge) {
     const rendered = rasterize(svg, Math.floor((width * edge) / longEdge));
     const pixels = rendered.pixels;
-    if (pixels.every((byte) => byte === 255)) {
+    if (bytes.length > maxBytes && pixels.every((byte) => byte === 255)) {
       throw new NoteError("Couldn't read this image. The file may be damaged; open the note in Samsung Notes to check it.");
     }
     const data = encodeJpeg(rendered.width, rendered.height, pixels);

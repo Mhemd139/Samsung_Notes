@@ -186,6 +186,15 @@ describe("imageForClaude", () => {
     expect(imageForClaude(blank, "image/jpeg").data).toBe(blank);
   });
 
+  it("returns a white screenshot that is only too tall instead of calling it damaged", () => {
+    const blank = paintedPng(1080, 2400, () => WHITE);
+    expect(blank.length).toBeLessThan(MAX_IMAGE_BYTES);
+    const result = imageForClaude(blank, "image/png");
+    const size = imageSize(result.data)!;
+    expect(result.mimeType).toBe("image/jpeg");
+    expect(Math.max(size.width, size.height)).toBeLessThanOrEqual(MAX_IMAGE_EDGE);
+  });
+
   const claimedPhoto = encode({ width: 1600, height: 1200, data: new Uint8Array(1600 * 1200 * 4), channels: 4 }).subarray(0, PNG_HEADER_BYTES);
   const garbagePng = new Uint8Array(150_000);
   garbagePng.set(claimedPhoto);
@@ -251,6 +260,12 @@ describe("photo orientation", () => {
     ["no TIFF header", withSegment(twoColour, app1(Buffer.concat([EXIF_ID, Buffer.from("not a TIFF header")])))],
   ])("leaves a photo untouched when it has %s", (_, photo) => {
     expect(imageForClaude(photo, "image/jpeg").data).toBe(photo);
+  });
+
+  it("returns a white photo that only needed turning instead of calling it damaged", () => {
+    const blank = paintedJpeg(600, 300, () => WHITE);
+    const result = imageForClaude(withSegment(blank, exifSegment(6)), "image/jpeg");
+    expect(imageSize(result.data)).toEqual({ width: 300, height: 600 });
   });
 
   it("turns a photo smaller than the minimum edge upright at its own size", () => {

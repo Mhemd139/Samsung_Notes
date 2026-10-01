@@ -33,6 +33,13 @@ describe("readPdf", () => {
     expect(size.width / size.height).toBeCloseTo(TALL_PAGE.width / TALL_PAGE.height, 2);
   });
 
+  it("returns a blank tall page as an image instead of calling it damaged", async () => {
+    const { pages } = await readPdf(makePdf([{ ...TALL_PAGE, content: "" }]), [1], false);
+    expect(pages[0]?.text).toBe("");
+    const size = imageSize(pages[0]!.image!)!;
+    expect(Math.max(size.width, size.height)).toBeLessThanOrEqual(MAX_API_EDGE);
+  });
+
   it("renders text pages too when asked", async () => {
     const { pages } = await readPdf(pdf, [1], true);
     expect(pages[0]?.image).toBeDefined();
