@@ -18,9 +18,15 @@ export interface NoteDetails {
   inkPages: number[];
 }
 
+export interface RenderedPage {
+  svg: string;
+  inkBottom?: number;
+}
+
 interface InspectedPage {
   strokes?: unknown[];
   elements?: unknown[];
+  content_bbox?: { y_max: number };
 }
 
 interface Inspection {
@@ -100,6 +106,13 @@ export function inspectNote(bytes: Uint8Array): NoteDetails {
 const hasInk = (page: InspectedPage | undefined): boolean =>
   (page?.strokes?.length ?? 0) + (page?.elements?.length ?? 0) > 0;
 
-export function renderPageSvg(bytes: Uint8Array, pageIndex: number): string {
-  return withSession(bytes, (session) => session.render_svg(pageIndex, "light"));
+// content_bbox bounds strokes and shapes only, so it marks the page's real end only when the note has no typed text or objects.
+export function renderPageSvg(bytes: Uint8Array, pageIndex: number): RenderedPage {
+  return withSession(bytes, (session) => {
+    const svg = session.render_svg(pageIndex, "light");
+    const { document, layout } = session.inspection() as Inspection;
+    const { note_text } = document.metadata;
+    if (note_text?.text?.trim() || note_text?.object_spans?.length) return { svg };
+    return { svg, inkBottom: document.pages[layout.pages[pageIndex]!.source_page_index]?.content_bbox?.y_max ?? 0 };
+  });
 }

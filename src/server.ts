@@ -4,7 +4,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { NO_FOLDER, type Catalog, type ListResult, type NoteEntry, type Overview } from "./catalog.js";
 import { describeError, NoteError } from "./errors.js";
-import { imageForClaude, imageParts, MAX_IMAGE_BYTES, pageParts, renderPage } from "./images.js";
+import { cropToInk, imageForClaude, imageParts, MAX_IMAGE_BYTES, pageParts, renderPage } from "./images.js";
 import { PDF_BUDGET_BYTES, readPdf } from "./pdf.js";
 import { renderPageSvg } from "./sdocx.js";
 import { cutText, formatDate, formatDateTime, formatPageRanges } from "./text.js";
@@ -33,6 +33,7 @@ const INSTRUCTIONS = [
   "- Read a note: read_note gives its typed text, tables and attachments, and names the pages that hold handwriting or drawings.",
   "- Handwriting, sketches or page layout: get_page_image, one page at a time. Very tall pages come in overlapping parts; the reply says how to get the next.",
   "- Invoices, receipts, photos, scans and PDFs: list_notes with has_attachments=true (add a folder or dates to narrow it), then get_attachment for each file that read_note or list_notes names. Scanned PDF pages come back as images. Very tall photos and pages (long receipts, scroll screenshots) come in overlapping parts; the reply says how to get the next.",
+  "- Dates: a note's date is its last edit, not the date printed on an invoice or receipt. For invoice dates, amounts or vendors, read the files with get_attachment; list_notes words don't search inside photos or PDFs.",
   "- Overlapping parts: each part begins with the last lines of the one before. Read every part before taking figures, and count a repeated line once.",
   "- Go through everything (e.g. \"put all my invoices in a spreadsheet\"): repeat list_notes with next_offset until it stops returning one, open every note and file you need, then build the table, summary or file yourself.",
   "- Nothing matched: try a folder, dates or has_handwriting=true instead of words, then look at the pages.",
@@ -96,8 +97,8 @@ export function createServer(catalog: Catalog): McpServer {
       inputSchema: {
         query: z.string().optional().describe("Words to find in titles and typed text. Every word must appear. Handwriting isn't searched."),
         folder: z.string().optional().describe(`Folder name from notes_overview, e.g. "Invoices". Includes subfolders. Use "${NO_FOLDER}" for notes outside folders.`),
-        modified_after: z.string().regex(DATE).optional().describe("Only notes modified on or after this day, YYYY-MM-DD."),
-        modified_before: z.string().regex(DATE).optional().describe("Only notes modified on or before this day, YYYY-MM-DD."),
+        modified_after: z.string().regex(DATE).optional().describe("Only notes last edited on or after this day, YYYY-MM-DD. Not the date written on an invoice inside the note."),
+        modified_before: z.string().regex(DATE).optional().describe("Only notes last edited on or before this day, YYYY-MM-DD. Not the date written on an invoice inside the note."),
         has_attachments: z.boolean().optional().describe("true: only notes with photos or PDFs. false: only notes without."),
         has_handwriting: z.boolean().optional().describe("true: only notes with handwriting or drawings. false: only notes without."),
         limit: z.number().int().min(1).max(MAX_LIMIT).default(DEFAULT_LIMIT),
@@ -180,7 +181,8 @@ export function createServer(catalog: Catalog): McpServer {
         if (page > entry.pageCount) {
           throw new NoteError(`“${entry.title}” has ${entry.pageCount} page${entry.pageCount === 1 ? "" : "s"}.`);
         }
-        const svg = renderPageSvg(await catalog.ref(id)!.fullBytes(), page - 1);
+        const rendered = renderPageSvg(await catalog.ref(id)!.fullBytes(), page - 1);
+        const svg = cropToInk(rendered.svg, rendered.inkBottom);
         const parts = pageParts(svg);
         if (part > parts) throw new NoteError(`Page ${page} of “${entry.title}” has ${parts} part${parts === 1 ? "" : "s"}.`);
         const fitted = imageForClaude(renderPage(svg, part), "image/png");

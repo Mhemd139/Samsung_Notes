@@ -62,6 +62,14 @@ describe("instructions", () => {
     const instructions = client.getInstructions() ?? "";
     for (const name of TOOL_NAMES) expect(instructions).toContain(name);
   });
+
+  it("say a note's date is its last edit, and to read the files for an invoice's own date", async () => {
+    expect(client.getInstructions()).toMatch(/a note's date is its last edit.*read the files/);
+    const { tools } = await client.listTools();
+    const { properties } = tools.find((t) => t.name === "list_notes")!.inputSchema as { properties: Record<string, { description: string }> };
+    expect(properties.modified_after!.description).toContain("last edit");
+    expect(properties.modified_before!.description).toContain("last edit");
+  });
 });
 
 describe("notes_overview", () => {
@@ -292,6 +300,32 @@ describe("get_page_image", () => {
     const result = await call("get_page_image", { id: "file:marker.sdocx", page: 1, part: 2 });
     expect(result.isError).toBe(true);
     expect(result.text).toContain("has 1 part");
+  });
+
+  describe("on a page 20 times its usual height", () => {
+    const PAGE_HEIGHT_AT = 26;
+    const stretch = (files: Record<string, Uint8Array>) => {
+      const pages = Object.entries(files).filter(([name]) => name.endsWith(".page"));
+      const [inked] = pages.map(([, data]) => data).sort((a, b) => b.length - a.length);
+      new DataView(inked!.buffer, inked!.byteOffset).setInt32(PAGE_HEIGHT_AT, 20 * 2613, true);
+    };
+    let tall: Client;
+
+    beforeAll(async () => {
+      const root = tempDir("sn-server-memo");
+      writeFileSync(join(root, "memo.sdocx"), rezipFixture("02-shapes-and-dot-calibration.sdocx", stretch));
+      writeFileSync(join(root, "typed.sdocx"), rezipFixture("04-marker4-highlighter.sdocx", stretch));
+      tall = await connect(new Catalog(() => ({ sources: [exportsFolderSource(root)], problems: [] })));
+    });
+
+    it("cuts a page that holds only ink just below the ink", async () => {
+      const { text } = await call("get_page_image", { id: "file:memo.sdocx", page: 1 }, tall);
+      expect(text).toMatch(/^Page 1 of \d+ — “memo”$/);
+    });
+
+    it("keeps every part of a page with typed text", async () => {
+      expect((await call("get_page_image", { id: "file:typed.sdocx", page: 1 }, tall)).text).toContain("(part 1 of 21;");
+    });
   });
 });
 

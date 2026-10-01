@@ -24,6 +24,6 @@ console.log("readable notes without a date:", notes.filter((n) => !n.problem && 
 const withPages = notes.find((n) => n.pageCount > 0 && !n.problem);
 if (withPages) {
   const t = performance.now();
-  const png = renderPage(renderPageSvg(await catalog.ref(withPages.id).fullBytes(), 0), 1);
+  const png = renderPage(renderPageSvg(await catalog.ref(withPages.id).fullBytes(), 0).svg, 1);
   console.log(`page render: ${png.length} bytes in ${Math.round(performance.now() - t)} ms`);
 }

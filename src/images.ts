@@ -54,14 +54,23 @@ export function renderPage(svg: string, part: number): Uint8Array {
   const parts = pageParts(svg);
   if (!box || parts === 1) return svgToPng(svg);
   const band = partBand(box.width, box.height, part, parts);
-  const sliced = svg.replace(/<svg\b[^>]*>/, (tag) =>
-    tag
-      .replace(/\sviewBox="[^"]*"/, ` viewBox="${box.x} ${box.y + band.top} ${box.width} ${band.height}"`)
-      .replace(/\swidth="[^"]*"/, ` width="${box.width}"`)
-      .replace(/\sheight="[^"]*"/, ` height="${band.height}"`),
-  );
-  return svgToPng(sliced);
+  return svgToPng(withBand(svg, box, box.y + band.top, band.height));
 }
+
+export function cropToInk(svg: string, inkBottom: number | undefined): string {
+  const box = viewBox(svg);
+  if (inkBottom === undefined || !box || pageParts(svg) === 1) return svg;
+  const height = Math.max(inkBottom - box.y + box.width * PART_OVERLAP_RATIO, box.width * PART_RATIO);
+  return height < box.height ? withBand(svg, box, box.y, height) : svg;
+}
+
+const withBand = (svg: string, box: Box, top: number, height: number): string =>
+  svg.replace(/<svg\b[^>]*>/, (tag) =>
+    tag
+      .replace(/\sviewBox="[^"]*"/, ` viewBox="${box.x} ${top} ${box.width} ${height}"`)
+      .replace(/\swidth="[^"]*"/, ` width="${box.width}"`)
+      .replace(/\sheight="[^"]*"/, ` height="${height}"`),
+  );
 
 export const attachmentParts = (width: number, height: number): number =>
   width > 0 && height > MAX_IMAGE_EDGE ? partCount(width, height, MAX_SINGLE_PART_ATTACHMENT_RATIO) : 1;

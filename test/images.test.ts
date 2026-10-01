@@ -4,6 +4,7 @@ import jpeg from "jpeg-js";
 import { describe, expect, it } from "vitest";
 import {
   attachmentParts,
+  cropToInk,
   IMAGE_WIDTH,
   imageForClaude,
   imageParts,
@@ -100,7 +101,7 @@ const withSegment = (photo: Uint8Array, segment: Buffer): Buffer => Buffer.conca
 
 describe("svgToPng", () => {
   it("renders a real note page at the standard width", () => {
-    const png = svgToPng(renderPageSvg(fixtureBytes("04-marker4-highlighter.sdocx"), 0));
+    const png = svgToPng(renderPageSvg(fixtureBytes("04-marker4-highlighter.sdocx"), 0).svg);
     expect(imageSize(png)?.width).toBe(IMAGE_WIDTH);
   });
 });
@@ -149,6 +150,31 @@ describe("tall pages", () => {
 
   it("treats SVG without a viewBox as one part", () => {
     expect(pageParts('<svg xmlns="http://www.w3.org/2000/svg" width="10" height="100"/>')).toBe(1);
+  });
+});
+
+describe("cropToInk", () => {
+  const memo = tallSvg(100, 14_100);
+
+  it("cuts a tall page a tenth of its width below the ink", () => {
+    const cropped = cropToInk(memo, 160);
+    expect(pageParts(cropped)).toBe(2);
+    expect(cropped).toContain('viewBox="0 0 100 170"');
+    expect(imageSize(renderPage(cropped, 2))).toEqual({ width: IMAGE_WIDTH, height: 1800 });
+  });
+
+  it("never cuts above one part's height", () => {
+    const cropped = cropToInk(memo, 20);
+    expect(pageParts(cropped)).toBe(1);
+    expect(imageSize(renderPage(cropped, 1))).toEqual({ width: IMAGE_WIDTH, height: 1800 });
+  });
+
+  it.each<[string, string, number | undefined]>([
+    ["a page that fits one part", tallSvg(100, 160), 10],
+    ["a page inked to the bottom", memo, 14_100],
+    ["a page with other content", memo, undefined],
+  ])("leaves %s whole", (_, svg, inkBottom) => {
+    expect(cropToInk(svg, inkBottom)).toBe(svg);
   });
 });
 

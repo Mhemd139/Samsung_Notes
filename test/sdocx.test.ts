@@ -69,8 +69,16 @@ describe("inspectNote", () => {
 
 describe("renderPageSvg", () => {
   it("renders a page as SVG with a viewBox", () => {
-    const svg = renderPageSvg(fixtureBytes("04-marker4-highlighter.sdocx"), 0);
+    const { svg } = renderPageSvg(fixtureBytes("04-marker4-highlighter.sdocx"), 0);
     expect(svg).toMatch(/<svg\b/);
     expect(svg).toMatch(/viewBox="[^"]+"/);
+  });
+
+  it("gives the lowest point of the ink when the note holds nothing else", () => {
+    expect(renderPageSvg(fixtureBytes("02-shapes-and-dot-calibration.sdocx"), 0).inkBottom).toBeCloseTo(903, 0);
+  });
+
+  it.each(["04-marker4-highlighter.sdocx", "03-image-placement.sdocx"])("gives no ink bottom when %s has typed text or objects", (name) => {
+    expect(renderPageSvg(fixtureBytes(name), 0).inkBottom).toBeUndefined();
   });
 });
