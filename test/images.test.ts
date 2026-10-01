@@ -17,6 +17,69 @@ const pixel = (png: Uint8Array, x: number, y: number) => {
   return [...image.data.slice(at, at + 3)];
 };
 
+type Rgb = readonly [number, number, number];
+
+const RED: Rgb = [255, 0, 0];
+const GREEN: Rgb = [0, 255, 0];
+const BLUE: Rgb = [0, 0, 255];
+const YELLOW: Rgb = [255, 255, 0];
+const WHITE: Rgb = [255, 255, 255];
+const PNG_HEADER_BYTES = 33;
+const EXIF_ID = Buffer.from("Exif\0\0", "latin1");
+
+const paintedJpeg = (width: number, height: number, colourAt: (x: number, y: number) => Rgb): Uint8Array => {
+  const data = Buffer.alloc(width * height * 4, 255);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) data.set(colourAt(x, y), (y * width + x) * 4);
+  }
+  return jpeg.encode({ width, height, data }, 90).data;
+};
+
+const noisyJpeg = (width: number, height: number): Uint8Array => jpeg.encode({ width, height, data: randomBytes(width * height * 4) }, 80).data;
+
+const colourName = (r: number, g: number, b: number): string => {
+  if (r > 200 && g < 60 && b < 60) return "red";
+  if (g > 200 && r < 60 && b < 60) return "green";
+  if (b > 200 && r < 60 && g < 60) return "blue";
+  if (r > 200 && g > 200 && b < 60) return "yellow";
+  return `rgb(${r}, ${g}, ${b})`;
+};
+
+const quadrantColours = (photo: Uint8Array): string[] => {
+  const { width, height, data } = jpeg.decode(photo);
+  return [[1, 1], [3, 1], [1, 3], [3, 3]].map(([quarterX, quarterY]) => {
+    const at = (Math.floor((height * quarterY!) / 4) * width + Math.floor((width * quarterX!) / 4)) * 4;
+    return colourName(data[at]!, data[at + 1]!, data[at + 2]!);
+  });
+};
+
+const app1 = (body: Buffer): Buffer => {
+  const header = Buffer.from([0xff, 0xe1, 0, 0]);
+  header.writeUInt16BE(body.length + 2, 2);
+  return Buffer.concat([header, body]);
+};
+
+const exifSegment = (orientation: number, byteOrder: "II" | "MM" = "II"): Buffer => {
+  const little = byteOrder === "II";
+  const tiff = Buffer.alloc(38);
+  const put16 = (value: number, at: number) => (little ? tiff.writeUInt16LE(value, at) : tiff.writeUInt16BE(value, at));
+  const put32 = (value: number, at: number) => (little ? tiff.writeUInt32LE(value, at) : tiff.writeUInt32BE(value, at));
+  tiff.write(byteOrder, 0, "latin1");
+  put16(42, 2); // TIFF magic
+  put32(8, 4); // IFD0 starts right after this 8-byte header
+  put16(2, 8); // two entries
+  put16(0x010f, 10); // entry 1, tag: Make (unrelated, the reader must skip it)
+  put16(2, 12); // type: ASCII
+  put32(1, 14); // count
+  put16(0x0112, 22); // entry 2, tag: Orientation
+  put16(3, 24); // type: SHORT
+  put32(1, 26); // count
+  put16(orientation, 30); // value
+  return app1(Buffer.concat([EXIF_ID, tiff]));
+};
+
+const withSegment = (photo: Uint8Array, segment: Buffer): Buffer => Buffer.concat([photo.subarray(0, 2), segment, photo.subarray(2)]);
+
 describe("svgToPng", () => {
   it("renders a real note page at the standard width", () => {
     const png = svgToPng(renderPageSvg(fixtureBytes("04-marker4-highlighter.sdocx"), 0));
@@ -76,5 +139,108 @@ describe("imageForClaude", () => {
 
   it("fits a smaller budget when asked", () => {
     expect(imageForClaude(big, "image/png", 100_000).data.length).toBeLessThanOrEqual(100_000);
+  });
+
+  it("re-encodes a small image over the budget at its own size", () => {
+    const small = encode({ width: 120, height: 80, data: randomBytes(120 * 80 * 4), channels: 4 });
+    expect(small.length).toBeGreaterThan(30_000);
+    const result = imageForClaude(small, "image/png", 30_000);
+    expect(result.mimeType).toBe("image/jpeg");
+    expect(result.data.length).toBeLessThanOrEqual(30_000);
+    expect(imageSize(result.data)).toEqual({ width: 120, height: 80 });
+  });
+
+  it("passes a blank page that fits the limit", () => {
+    const blank = paintedJpeg(300, 400, () => WHITE);
+    expect(imageForClaude(blank, "image/jpeg").data).toBe(blank);
+  });
+
+  const claimedPhoto = encode({ width: 1600, height: 1200, data: new Uint8Array(1600 * 1200 * 4), channels: 4 }).subarray(0, PNG_HEADER_BYTES);
+  const garbagePng = new Uint8Array(150_000);
+  garbagePng.set(claimedPhoto);
+  const fullJpeg = noisyJpeg(500, 400);
+  const truncatedJpeg = fullJpeg.subarray(0, Math.floor(fullJpeg.length * 0.6));
+
+  it.each<[string, Uint8Array, string]>([
+    ["a PNG with a valid header and a garbage body", garbagePng, "image/png"],
+    ["a truncated JPEG", truncatedJpeg, "image/jpeg"],
+  ])("refuses %s instead of sending a blank image", (_, bytes, mimeType) => {
+    expect(bytes.length).toBeGreaterThan(100_000);
+    expect(() => imageForClaude(bytes, mimeType, 100_000)).toThrow(
+      "Couldn't read this image. The file may be damaged; open the note in Samsung Notes to check it.",
+    );
+  });
+});
+
+describe("photo orientation", () => {
+  const twoColour = paintedJpeg(600, 300, (x) => (x < 300 ? RED : BLUE));
+  const corners = [[RED, GREEN], [BLUE, YELLOW]] as const;
+  const quadrants = paintedJpeg(400, 300, (x, y) => corners[y < 150 ? 0 : 1][x < 200 ? 0 : 1]);
+
+  it("turns a photo tagged orientation 6 upright", () => {
+    const result = imageForClaude(withSegment(twoColour, exifSegment(6)), "image/jpeg");
+    expect(result.mimeType).toBe("image/jpeg");
+    expect(imageSize(result.data)).toEqual({ width: 300, height: 600 });
+    expect(quadrantColours(result.data)).toEqual(["red", "red", "blue", "blue"]);
+  });
+
+  it("reads big-endian Exif", () => {
+    const result = imageForClaude(withSegment(twoColour, exifSegment(8, "MM")), "image/jpeg");
+    expect(imageSize(result.data)).toEqual({ width: 300, height: 600 });
+    expect(quadrantColours(result.data)).toEqual(["blue", "blue", "red", "red"]);
+  });
+
+  it("finds the Exif segment after another APP1 segment", () => {
+    const xmp = app1(Buffer.from("http://ns.adobe.com/xap/1.0/\0<x:xmpmeta/>", "latin1"));
+    const result = imageForClaude(withSegment(twoColour, Buffer.concat([xmp, exifSegment(6)])), "image/jpeg");
+    expect(imageSize(result.data)).toEqual({ width: 300, height: 600 });
+    expect(quadrantColours(result.data)).toEqual(["red", "red", "blue", "blue"]);
+  });
+
+  it.each<[number, boolean, string[]]>([
+    [1, false, ["red", "green", "blue", "yellow"]],
+    [2, false, ["green", "red", "yellow", "blue"]],
+    [3, false, ["yellow", "blue", "green", "red"]],
+    [4, false, ["blue", "yellow", "red", "green"]],
+    [5, true, ["red", "blue", "green", "yellow"]],
+    [6, true, ["blue", "red", "yellow", "green"]],
+    [7, true, ["yellow", "green", "blue", "red"]],
+    [8, true, ["green", "yellow", "red", "blue"]],
+  ])("draws orientation %i the right way up", (orientation, swaps, upright) => {
+    const result = imageForClaude(withSegment(quadrants, exifSegment(orientation)), "image/jpeg");
+    expect(imageSize(result.data)).toEqual(swaps ? { width: 300, height: 400 } : { width: 400, height: 300 });
+    expect(quadrantColours(result.data)).toEqual(upright);
+  });
+
+  it.each<[string, Uint8Array]>([
+    ["no Exif segment", twoColour],
+    ["orientation 1", withSegment(twoColour, exifSegment(1))],
+    ["an orientation outside 1 to 8", withSegment(twoColour, exifSegment(9))],
+    ["an IFD offset past the segment end", withSegment(twoColour, app1(Buffer.concat([EXIF_ID, Buffer.from([0x49, 0x49, 0x2a, 0, 0xff, 0xff, 0, 0])])))],
+    ["no TIFF header", withSegment(twoColour, app1(Buffer.concat([EXIF_ID, Buffer.from("not a TIFF header")])))],
+  ])("leaves a photo untouched when it has %s", (_, photo) => {
+    expect(imageForClaude(photo, "image/jpeg").data).toBe(photo);
+  });
+
+  it("turns a photo smaller than the minimum edge upright at its own size", () => {
+    const tiny = paintedJpeg(100, 60, (x) => (x < 50 ? RED : BLUE));
+    const result = imageForClaude(withSegment(tiny, exifSegment(6)), "image/jpeg");
+    expect(imageSize(result.data)).toEqual({ width: 60, height: 100 });
+    expect(quadrantColours(result.data)).toEqual(["red", "red", "blue", "blue"]);
+  });
+
+  it("caps a large rotated photo at the maximum edge even when it fits the byte limit", () => {
+    const wide = paintedJpeg(2000, 1000, (x) => (x < 1000 ? RED : BLUE));
+    expect(wide.length).toBeLessThan(MAX_IMAGE_BYTES);
+    const result = imageForClaude(withSegment(wide, exifSegment(6)), "image/jpeg");
+    expect(imageSize(result.data)).toEqual({ width: 784, height: MAX_IMAGE_EDGE });
+    expect(quadrantColours(result.data)).toEqual(["red", "red", "blue", "blue"]);
+  });
+
+  it("keeps a rotated photo upright while shrinking it to a smaller budget", () => {
+    const result = imageForClaude(withSegment(noisyJpeg(600, 300), exifSegment(6)), "image/jpeg", 50_000);
+    const size = imageSize(result.data)!;
+    expect(result.data.length).toBeLessThanOrEqual(50_000);
+    expect(size.height / size.width).toBeCloseTo(2, 1);
   });
 });

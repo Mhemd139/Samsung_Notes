@@ -10,13 +10,32 @@ const PART_RATIO = 1.5;
 const JPEG_QUALITY = 80;
 const SHRINK_STEP = 0.8;
 const MIN_IMAGE_EDGE = 200;
+const EXIF_SIGNATURE = 0x45786966;
+const TIFF_LITTLE_ENDIAN = 0x4949;
+const TIFF_BIG_ENDIAN = 0x4d4d;
+const TIFF_SHORT = 3;
+const EXIF_ORIENTATION_TAG = 0x0112;
 
-interface Box {
-  x: number;
-  y: number;
+interface Size {
   width: number;
   height: number;
 }
+
+interface Box extends Size {
+  x: number;
+  y: number;
+}
+
+const ORIENTATIONS: Record<number, { swapsAxes: boolean; matrix: (width: number, height: number) => string }> = {
+  1: { swapsAxes: false, matrix: () => "1 0 0 1 0 0" },
+  2: { swapsAxes: false, matrix: (width) => `-1 0 0 1 ${width} 0` },
+  3: { swapsAxes: false, matrix: (width, height) => `-1 0 0 -1 ${width} ${height}` },
+  4: { swapsAxes: false, matrix: (_, height) => `1 0 0 -1 0 ${height}` },
+  5: { swapsAxes: true, matrix: () => "0 1 1 0 0 0" },
+  6: { swapsAxes: true, matrix: (_, height) => `0 1 -1 0 ${height} 0` },
+  7: { swapsAxes: true, matrix: (width, height) => `0 -1 -1 0 ${height} ${width}` },
+  8: { swapsAxes: true, matrix: (width) => `0 -1 1 0 0 ${width}` },
+};
 
 export function svgToPng(svg: string, width = IMAGE_WIDTH): Uint8Array {
   return rasterize(svg, width).asPng();
@@ -43,7 +62,7 @@ export function renderPage(svg: string, part: number): Uint8Array {
   return svgToPng(sliced);
 }
 
-export function imageSize(bytes: Uint8Array): { width: number; height: number } | undefined {
+export function imageSize(bytes: Uint8Array): Size | undefined {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   if (bytes.length >= 24 && view.getUint32(0) === 0x89504e47) {
     return { width: view.getUint32(16), height: view.getUint32(20) };
@@ -61,17 +80,21 @@ export function imageSize(bytes: Uint8Array): { width: number; height: number } 
 }
 
 export function imageForClaude(bytes: Uint8Array, mimeType: string, maxBytes = MAX_IMAGE_BYTES): { data: Uint8Array; mimeType: string } {
-  if (bytes.length <= maxBytes) return { data: bytes, mimeType };
-  const size = imageSize(bytes);
-  if (!size) throw new NoteError(`This image is too large to send (${(bytes.length / 1e6).toFixed(1)} MB).`);
-  const longEdge = Math.max(size.width, size.height);
-  const svg =
-    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${size.width}" height="${size.height}">` +
-    `<image width="${size.width}" height="${size.height}" xlink:href="data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}"/></svg>`;
+  const stored = imageSize(bytes);
+  const orientation = stored ? exifOrientation(bytes) : 1;
+  if (bytes.length <= maxBytes && orientation === 1) return { data: bytes, mimeType };
+  if (!stored) throw new NoteError(`This image is too large to send (${(bytes.length / 1e6).toFixed(1)} MB).`);
+  const { svg, width, height } = uprightSvg(bytes, mimeType, stored, orientation);
+  const longEdge = Math.max(width, height);
+  const minEdge = Math.min(MIN_IMAGE_EDGE, longEdge);
   let edge = Math.min(MAX_IMAGE_EDGE, longEdge);
-  while (edge >= MIN_IMAGE_EDGE) {
-    const rendered = rasterize(svg, Math.round((size.width * edge) / longEdge));
-    const data = encodeJpeg(rendered.width, rendered.height, rendered.pixels);
+  while (edge >= minEdge) {
+    const rendered = rasterize(svg, Math.round((width * edge) / longEdge));
+    const pixels = rendered.pixels;
+    if (pixels.every((byte) => byte === 255)) {
+      throw new NoteError("Couldn't read this image. The file may be damaged; open the note in Samsung Notes to check it.");
+    }
+    const data = encodeJpeg(rendered.width, rendered.height, pixels);
     if (data.length <= maxBytes) return { data, mimeType: "image/jpeg" };
     edge = Math.floor(edge * Math.min(SHRINK_STEP, Math.sqrt(maxBytes / data.length)));
   }
@@ -80,6 +103,47 @@ export function imageForClaude(bytes: Uint8Array, mimeType: string, maxBytes = M
 
 export const encodeJpeg = (width: number, height: number, rgba: Uint8Array): Uint8Array =>
   jpeg.encode({ width, height, data: rgba }, JPEG_QUALITY).data;
+
+function uprightSvg(bytes: Uint8Array, mimeType: string, stored: Size, orientation: number): Size & { svg: string } {
+  const { swapsAxes, matrix } = ORIENTATIONS[orientation]!;
+  const { width, height } = swapsAxes ? { width: stored.height, height: stored.width } : stored;
+  const href = `data:${mimeType};base64,${Buffer.from(bytes).toString("base64")}`;
+  const svg =
+    `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}">` +
+    `<image width="${stored.width}" height="${stored.height}" transform="matrix(${matrix(stored.width, stored.height)})" xlink:href="${href}"/></svg>`;
+  return { svg, width, height };
+}
+
+function exifOrientation(bytes: Uint8Array): number {
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  if (bytes.length < 4 || view.getUint16(0) !== 0xffd8) return 1;
+  let at = 2;
+  while (at + 4 <= bytes.length && bytes[at] === 0xff && bytes[at + 1] !== 0xda) {
+    const end = Math.min(at + 2 + view.getUint16(at + 2), bytes.length);
+    const isExif = bytes[at + 1] === 0xe1 && at + 10 <= end && view.getUint32(at + 4) === EXIF_SIGNATURE && view.getUint16(at + 8) === 0;
+    if (isExif) return tiffOrientation(view, at + 10, end);
+    at = end;
+  }
+  return 1;
+}
+
+function tiffOrientation(view: DataView, tiff: number, end: number): number {
+  if (tiff + 8 > end) return 1;
+  const byteOrder = view.getUint16(tiff);
+  if (byteOrder !== TIFF_LITTLE_ENDIAN && byteOrder !== TIFF_BIG_ENDIAN) return 1;
+  const little = byteOrder === TIFF_LITTLE_ENDIAN;
+  const ifd = tiff + view.getUint32(tiff + 4, little);
+  if (ifd + 2 > end) return 1;
+  const entries = view.getUint16(ifd, little);
+  for (let i = 0; i < entries; i++) {
+    const entry = ifd + 2 + i * 12;
+    if (entry + 12 > end) return 1;
+    if (view.getUint16(entry, little) !== EXIF_ORIENTATION_TAG) continue;
+    const orientation = view.getUint16(entry + 8, little);
+    return view.getUint16(entry + 2, little) === TIFF_SHORT && orientation >= 1 && orientation <= 8 ? orientation : 1;
+  }
+  return 1;
+}
 
 function rasterize(svg: string, width: number) {
   return new Resvg(svg, {
