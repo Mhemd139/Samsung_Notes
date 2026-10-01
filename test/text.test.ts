@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inspectNote } from "../src/sdocx.js";
-import { buildNoteText, formatDate, noteTitle } from "../src/text.js";
+import { buildNoteText, formatDate, formatPageRanges, noteTitle } from "../src/text.js";
 import { fixtureBytes } from "./helpers.js";
 
 const textOf = (name: string, files: string[] = []) => {
@@ -101,5 +101,13 @@ describe("noteTitle", () => {
 describe("formatDate", () => {
   it("formats local dates", () => {
     expect(formatDate(new Date(2026, 0, 5, 23, 59).getTime())).toBe("2026-01-05");
+  });
+});
+
+describe("formatPageRanges", () => {
+  it("joins runs of pages", () => {
+    expect(formatPageRanges([1, 2, 3, 5, 7, 8])).toBe("1–3, 5, 7–8");
+    expect(formatPageRanges([4])).toBe("4");
+    expect(formatPageRanges([])).toBe("");
   });
 });

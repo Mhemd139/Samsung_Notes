@@ -65,6 +65,17 @@ export function formatDateTime(ms: number): string {
   return `${formatDate(ms)} ${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
+export const formatPageRanges = (pages: number[]): string =>
+  pages
+    .reduce<[number, number][]>((runs, page) => {
+      const last = runs.at(-1);
+      if (last && page === last[1] + 1) last[1] = page;
+      else runs.push([page, page]);
+      return runs;
+    }, [])
+    .map(([start, end]) => (start === end ? `${start}` : `${start}–${end}`))
+    .join(", ");
+
 function renderSpan(span: TextSpan, attachmentFiles: string[]): string {
   const content = span.content ?? {};
   if ("Table" in content) return `\n${tableToMarkdown(content.Table as TableContent)}\n`;
