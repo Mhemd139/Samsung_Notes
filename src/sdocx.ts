@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import * as bindings from "@twango/sdocx/sdocx_bg.js";
+import { unzipSync } from "fflate";
 
 export interface TextSpan {
   object_type: string;
@@ -58,16 +59,38 @@ function withSession<T>(bytes: Uint8Array, use: (session: bindings.DocumentSessi
   }
 }
 
+// A real .sdocx carries its dates in a tail appended after the zip. Re-zipping drops that tail, and
+// the parser then returns microsecond values labelled as ms. end_tag.bin holds both dates in
+// microseconds (undocumented layout, checked on the public fixtures); anything unexpected gives null.
+const END_TAG = "end_tag.bin";
+const END_TAG_MODIFIED_US = 8;
+const END_TAG_CREATED_US = 46;
+const U64_BYTES = 8;
+const EARLIEST_DATE_MS = Date.UTC(2000, 0, 1);
+const ONE_DAY_MS = 86_400_000;
+
+function endTagDates(bytes: Uint8Array): { createdMs: number; modifiedMs: number } | undefined {
+  const tag = unzipSync(bytes, { filter: (file) => file.name === END_TAG })[END_TAG];
+  if (!tag || tag.length < END_TAG_CREATED_US + U64_BYTES) return undefined;
+  const view = new DataView(tag.buffer, tag.byteOffset, tag.byteLength);
+  const ms = (at: number) => Math.round(Number(view.getBigUint64(at, true)) / 1000);
+  return { createdMs: ms(END_TAG_CREATED_US), modifiedMs: ms(END_TAG_MODIFIED_US) };
+}
+
+const plausibleDate = (ms: number | undefined): number | null =>
+  ms !== undefined && ms >= EARLIEST_DATE_MS && ms <= Date.now() + ONE_DAY_MS ? ms : null;
+
 export function inspectNote(bytes: Uint8Array): NoteDetails {
   return withSession(bytes, (session) => {
     const { document, layout } = session.inspection() as Inspection;
     const { metadata } = document;
+    const dates = endTagDates(bytes);
     return {
       title: metadata.note_title?.text ?? "",
       rawText: metadata.note_text?.text ?? "",
       spans: metadata.note_text?.object_spans ?? [],
-      createdMs: metadata.created_ms ?? null,
-      modifiedMs: metadata.modified_ms ?? null,
+      createdMs: plausibleDate(dates ? dates.createdMs : metadata.created_ms),
+      modifiedMs: plausibleDate(dates ? dates.modifiedMs : metadata.modified_ms),
       pageCount: session.page_count,
       inkPages: layout.pages.flatMap(({ source_page_index }, i) => (hasInk(document.pages[source_page_index]) ? [i + 1] : [])),
     };
