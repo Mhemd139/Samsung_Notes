@@ -27,6 +27,15 @@ describe("inspectNote", () => {
     expect(contentKinds("03-image-placement.sdocx")).toContain("Image");
   });
 
+  it.each([
+    ["01-basic-formatting.sdocx", []],
+    ["02-shapes-and-dot-calibration.sdocx", [1]],
+    ["03-image-placement.sdocx", []],
+    ["04-marker4-highlighter.sdocx", [1]],
+  ])("finds the pages with handwriting or drawings in %s", (name, pages) => {
+    expect(inspectNote(fixtureBytes(name)).inkPages).toEqual(pages);
+  });
+
   it("throws on bytes that are not a note", () => {
     expect(() => inspectNote(new Uint8Array([1, 2, 3]))).toThrow();
   });

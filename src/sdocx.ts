@@ -14,10 +14,17 @@ export interface NoteDetails {
   createdMs: number | null;
   modifiedMs: number | null;
   pageCount: number;
+  inkPages: number[];
+}
+
+interface InspectedPage {
+  strokes?: unknown[];
+  elements?: unknown[];
 }
 
 interface Inspection {
   document: {
+    pages: InspectedPage[];
     metadata: {
       note_title?: { text?: string };
       note_text?: { text?: string; object_spans?: TextSpan[] };
@@ -25,6 +32,7 @@ interface Inspection {
       modified_ms?: number;
     };
   };
+  layout: { pages: { source_page_index: number }[] };
 }
 
 let loaded = false;
@@ -52,7 +60,8 @@ function withSession<T>(bytes: Uint8Array, use: (session: bindings.DocumentSessi
 
 export function inspectNote(bytes: Uint8Array): NoteDetails {
   return withSession(bytes, (session) => {
-    const { metadata } = (session.inspection() as Inspection).document;
+    const { document, layout } = session.inspection() as Inspection;
+    const { metadata } = document;
     return {
       title: metadata.note_title?.text ?? "",
       rawText: metadata.note_text?.text ?? "",
@@ -60,9 +69,13 @@ export function inspectNote(bytes: Uint8Array): NoteDetails {
       createdMs: metadata.created_ms ?? null,
       modifiedMs: metadata.modified_ms ?? null,
       pageCount: session.page_count,
+      inkPages: layout.pages.flatMap(({ source_page_index }, i) => (hasInk(document.pages[source_page_index]) ? [i + 1] : [])),
     };
   });
 }
+
+const hasInk = (page: InspectedPage | undefined): boolean =>
+  (page?.strokes?.length ?? 0) + (page?.elements?.length ?? 0) > 0;
 
 export function renderPageSvg(bytes: Uint8Array, pageIndex: number): string {
   return withSession(bytes, (session) => session.render_svg(pageIndex, "light"));
