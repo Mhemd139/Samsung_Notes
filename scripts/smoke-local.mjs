@@ -1,4 +1,6 @@
 // Local-only: checks the built server against YOUR notes and prints counts, never content.
+import { statSync } from "node:fs";
+import { join } from "node:path";
 import { Catalog } from "../dist/catalog.js";
 import { resolveSources } from "../dist/config.js";
 import { renderPageSvg } from "../dist/sdocx.js";
@@ -9,6 +11,11 @@ const catalog = new Catalog(() => resolveSources(process.env, process.argv.slice
 await catalog.refresh();
 const overview = catalog.overview();
 console.log("sources:", overview.sources.map((s) => `${s.name}: ${s.notes}`).join("; ") || "none");
+const windows = overview.sources.find((s) => s.name === "Samsung Notes for Windows");
+if (windows) {
+  const wal = statSync(join(windows.location, "Storage.sqlite-wal"), { throwIfNoEntry: false });
+  console.log("Storage.sqlite-wal:", wal ? `${wal.size} bytes` : "none");
+}
 console.log("totals:", overview.totals, `| folders: ${overview.folders.length}`);
 console.log(`first load: ${Math.round(performance.now() - started)} ms`);
 console.log("problems:", overview.problems.length);
