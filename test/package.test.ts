@@ -34,10 +34,13 @@ describe("manifest.json", () => {
 describe("built server over stdio", () => {
   it("starts, lists tools and reads an exported note", async () => {
     const noSamsungApp = tempDir("sn-package");
+    const env: NodeJS.ProcessEnv = { ...process.env, LOCALAPPDATA: noSamsungApp };
+    delete env.SAMSUNG_NOTES_APP_DIR;
+    delete env.SAMSUNG_NOTES_EXPORTS_DIR;
     const transport = new StdioClientTransport({
       command: process.execPath,
       args: [join(root, "dist", "index.js"), "--exports", fixturePath("")],
-      env: { ...process.env, LOCALAPPDATA: noSamsungApp } as Record<string, string>,
+      env: env as Record<string, string>,
       stderr: "pipe",
     });
     let serverLog = "";
@@ -49,8 +52,12 @@ describe("built server over stdio", () => {
       await client.connect(transport);
       const { tools } = await client.listTools();
       expect(tools).toHaveLength(TOOL_NAMES.length);
-      const result = (await client.callTool({ name: "list_notes", arguments: { query: "atlas" } })) as { content: { text: string }[] };
-      expect(JSON.parse(result.content[0].text).total).toBe(1);
+      const total = async (args: Record<string, unknown>): Promise<number> => {
+        const result = (await client.callTool({ name: "list_notes", arguments: args })) as { content: { text: string }[] };
+        return JSON.parse(result.content[0].text).total;
+      };
+      expect(await total({ query: "atlas" })).toBe(1);
+      expect(await total({})).toBe(4);
     } catch (err) {
       console.error(`Server log:\n${serverLog}`);
       throw err;
