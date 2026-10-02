@@ -44,22 +44,19 @@ macOS: curl -fsSLo ~/Downloads/samsung-notes-mcp.mcpb https://github.com/Mhemd13
    - **Everything else (Mac, other PCs)**: on your phone, open Samsung Notes, select notes → **Share** → **Samsung Notes file**, and save the `.sdocx` files into one folder on your computer (Google Drive, OneDrive, USB — any way works). In Claude Desktop, open the extension's settings and choose that folder as **Exported notes folder**. Put new exports in the same folder any time; Claude sees them on the next question.
 3. Optional: **Save folder** in the extension's settings is where Claude saves copies of attachments when you ask. By default it's the “Samsung Notes” folder in Documents. To keep them in Google Drive, OneDrive, iCloud or Dropbox, choose a folder inside that service's synced folder.
 4. Start a new chat and ask: “Give me an overview of my notes.”
+   - The first time Claude uses each tool, it asks permission. Choose **Always allow**, and it won't ask again for that tool.
 
 Claude Desktop includes Node.js, so there's nothing else to install.
 
 ### Claude Code
 
-Until the npm package is published, run it from a copy of this repository (needs git and Node.js 20.12 or newer):
+Needs Node.js 20.12 or newer:
 
 ```bash
-git clone https://github.com/Mhemd139/Samsung_Notes.git
-cd Samsung_Notes
-npm ci
-npm run build
-claude mcp add --scope user samsung-notes -- node "$PWD/dist/index.js"
+claude mcp add --scope user samsung-notes -- npx -y samsung-notes-mcp
 ```
 
-`--scope user` makes it work in every folder, not only this one. With exported notes, add `--exports "/path/to/folder"` at the end of the last command. To save attachments somewhere other than the “Samsung Notes” folder in Documents, add `--save-dir "/path/to/folder"`.
+`--scope user` makes it work in every folder, not only this one. With exported notes, add `--exports "/path/to/folder"` at the end of the command. To save attachments somewhere other than the “Samsung Notes” folder in Documents, add `--save-dir "/path/to/folder"`.
 
 ## Try asking
 
