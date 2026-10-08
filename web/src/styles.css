@@ -325,6 +325,23 @@ body[data-view="note"] .topbar {
   font-size: 0.9375rem;
 }
 
+.link-button {
+  padding: 4px 6px;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.link-button:hover {
+  text-decoration-thickness: 2px;
+}
+
 .privacy {
   display: inline-flex;
   align-items: center;
@@ -884,6 +901,10 @@ body[data-view="note"] .topbar {
 
 .fine a {
   color: inherit;
+}
+
+.fine a + a::before {
+  content: " ";
 }
 
 /* Overlay and toast */

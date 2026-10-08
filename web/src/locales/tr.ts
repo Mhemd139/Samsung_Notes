@@ -9,6 +9,7 @@ export default {
     ".sdocx dosyalarını her telefonda veya bilgisayarda açın. El yazısı dahil her sayfayı görün, ardından PDF ve Markdown olarak kaydedin ya da yapay zekânıza verin.",
   choose: "Notları aç",
   dropHint: "ya da .sdocx dosyalarını, bir klasörü veya .zip dosyasını buraya bırakın",
+  trySample: "Elinizde not yok mu? Örnekleri deneyin",
   privacy: "Gizlilik esastır: notlarınız bu cihazda açılır ve asla yüklenmez.",
   installHint: "Notları doğrudan Samsung Notes'tan paylaşmak için Inkport'u yükleyin.",
   howTitle: "Notlarınızı Samsung Notes'tan çıkarın",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "Sorun bildir",
   translate: "Bu çeviriyi iyileştir",
   credit: "twangodev'in açık kaynaklı sdocx ayrıştırıcısı üzerine kuruludur.",
+  sampleCredit: "Örnek notlar: SDOCX Compatibility Corpus (CC BY 4.0).",
   notAffiliated: "Samsung ile bağlantılı değildir. Samsung Notes, Samsung Electronics'in ticari markasıdır.",
   dropOverlay: "Açmak için bırakın",
 } satisfies Strings;

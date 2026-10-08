@@ -9,6 +9,7 @@ export default {
     "Открывайте файлы .sdocx на любом телефоне или компьютере. Смотрите каждую страницу, включая рукописные, сохраняйте их в PDF и Markdown или передавайте своему ИИ.",
   choose: "Открыть заметки",
   dropHint: "или перетащите сюда файлы .sdocx, папку или .zip",
+  trySample: "Нет заметок под рукой? Попробуйте примеры",
   privacy: "Конфиденциально по умолчанию: заметки открываются на этом устройстве и никуда не загружаются.",
   installHint: "Установите Inkport, чтобы отправлять в него заметки прямо из Samsung Notes.",
   howTitle: "Как достать заметки из Samsung Notes",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "Сообщить о проблеме",
   translate: "Улучшить перевод",
   credit: "Основано на открытом парсере sdocx от twangodev.",
+  sampleCredit: "Примеры заметок: SDOCX Compatibility Corpus (CC BY 4.0).",
   notAffiliated: "Не связано с Samsung. Samsung Notes — товарный знак Samsung Electronics.",
   dropOverlay: "Отпустите, чтобы открыть",
 } satisfies Strings;

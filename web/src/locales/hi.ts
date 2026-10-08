@@ -9,6 +9,7 @@ export default {
     "किसी भी फ़ोन या कंप्यूटर पर .sdocx फ़ाइलें खोलें। हर पेज देखें, हाथ से लिखे पेज भी, फिर उन्हें PDF और Markdown में सेव करें या अपने AI को दें।",
   choose: "नोट्स खोलें",
   dropHint: "या .sdocx फ़ाइलें, कोई फ़ोल्डर या .zip यहाँ ड्रॉप करें",
+  trySample: "अभी कोई नोट नहीं है? नमूने आज़माएँ",
   privacy: "निजता सबसे पहले: आपके नोट्स इसी डिवाइस पर खुलते हैं और कभी अपलोड नहीं होते।",
   installHint: "Samsung Notes से नोट्स सीधे शेयर करने के लिए Inkport इंस्टॉल करें।",
   howTitle: "Samsung Notes से अपने नोट्स निकालें",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "समस्या बताएँ",
   translate: "यह अनुवाद बेहतर बनाएँ",
   credit: "twangodev के ओपन sdocx पार्सर पर बना।",
+  sampleCredit: "नमूना नोट्स: SDOCX Compatibility Corpus (CC BY 4.0)।",
   notAffiliated: "Samsung से संबद्ध नहीं। Samsung Notes, Samsung Electronics का ट्रेडमार्क है।",
   dropOverlay: "खोलने के लिए ड्रॉप करें",
 } satisfies Strings;

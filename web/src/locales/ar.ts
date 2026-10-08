@@ -9,6 +9,7 @@ export default {
     "افتح ملفات .sdocx على أي هاتف أو حاسوب. شاهد كل صفحة، بما فيها الكتابة بخط اليد، ثم احفظها بصيغتي PDF وMarkdown أو سلّمها إلى الذكاء الاصطناعي الذي تستخدمه.",
   choose: "فتح الملاحظات",
   dropHint: "أو أفلت هنا ملفات .sdocx أو مجلدًا أو ملف .zip",
+  trySample: "ليست لديك ملاحظات الآن؟ جرّب الأمثلة",
   privacy: "الخصوصية أولًا: تُفتح ملاحظاتك على هذا الجهاز ولا تُرفع أبدًا.",
   installHint: "ثبّت Inkport لتشارك الملاحظات معه مباشرةً من Samsung Notes.",
   howTitle: "أخرج ملاحظاتك من Samsung Notes",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "الإبلاغ عن مشكلة",
   translate: "حسّن هذه الترجمة",
   credit: "مبني على محلّل sdocx المفتوح من twangodev.",
+  sampleCredit: "الملاحظات النموذجية: SDOCX Compatibility Corpus (CC BY 4.0).",
   notAffiliated: "غير تابع لشركة Samsung. ‏Samsung Notes علامة تجارية لشركة Samsung Electronics.",
   dropOverlay: "أفلت للفتح",
 } satisfies Strings;

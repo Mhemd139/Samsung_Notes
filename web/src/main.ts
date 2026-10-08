@@ -28,6 +28,7 @@ interface LaunchQueue {
 }
 
 const SHARE_CACHE = "inkport-shared";
+const SAMPLES = ["04-marker4-highlighter", "03-image-placement", "02-shapes-and-dot-calibration", "01-basic-formatting"];
 const TOAST_MS = 4000;
 const MAX_LISTED = 3;
 const IMAGE_TYPES: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
@@ -144,6 +145,18 @@ async function openFiles(files: File[]): Promise<void> {
     console.error(error);
     toast(t("failed"), { error: true });
   }
+}
+
+// Public test notes from the SDOCX Compatibility Corpus, so anyone can try Inkport without a Samsung device.
+async function openSamples(): Promise<void> {
+  const files = await Promise.all(
+    SAMPLES.map(async (name) => {
+      const response = await fetch(`./samples/${name}.sdocx`);
+      if (!response.ok) throw new Error(`Sample ${name} answered ${response.status}.`);
+      return new File([await response.blob()], `${name}.sdocx`);
+    }),
+  );
+  await addFiles(files);
 }
 
 // Returns undefined when the page wasn't opened by Android's share sheet.
@@ -522,6 +535,12 @@ function wireEvents(): void {
   const chooseFiles = () => ui.fileInput.click();
   byId("open").addEventListener("click", chooseFiles);
   byId("add").addEventListener("click", chooseFiles);
+  byId("samples").addEventListener("click", () => {
+    openSamples().catch((error: unknown) => {
+      console.error(error);
+      toast(t("failed"), { error: true });
+    });
+  });
   ui.fileInput.addEventListener("change", () => {
     const files = [...(ui.fileInput.files ?? [])];
     ui.fileInput.value = "";

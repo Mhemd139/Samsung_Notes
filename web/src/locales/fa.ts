@@ -9,6 +9,7 @@ export default {
     "فایل‌های .sdocx را روی هر گوشی یا رایانه‌ای باز کنید. همه صفحه‌ها، از جمله دست‌نوشته‌ها، را ببینید و آن‌ها را به‌صورت PDF و Markdown ذخیره کنید یا به هوش مصنوعی‌تان بدهید.",
   choose: "باز کردن یادداشت‌ها",
   dropHint: "یا فایل‌های .sdocx، یک پوشه یا یک فایل .zip را اینجا رها کنید",
+  trySample: "یادداشتی دم دست ندارید؟ نمونه‌ها را امتحان کنید",
   privacy: "حریم خصوصی از پایه: یادداشت‌های شما روی همین دستگاه باز می‌شوند و هرگز بارگذاری نمی‌شوند.",
   installHint: "Inkport را نصب کنید تا یادداشت‌ها را مستقیم از Samsung Notes با آن به اشتراک بگذارید.",
   howTitle: "یادداشت‌هایتان را از Samsung Notes بیرون بیاورید",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "گزارش مشکل",
   translate: "بهبود این ترجمه",
   credit: "ساخته‌شده بر پایه تجزیه‌گر متن‌باز sdocx از twangodev.",
+  sampleCredit: "یادداشت‌های نمونه: SDOCX Compatibility Corpus (CC BY 4.0).",
   notAffiliated: "وابسته به Samsung نیست. ‏Samsung Notes علامت تجاری Samsung Electronics است.",
   dropOverlay: "برای باز کردن رها کنید",
 } satisfies Strings;

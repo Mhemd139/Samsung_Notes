@@ -8,6 +8,7 @@ export default {
   heroText: "在任何手机或电脑上打开 .sdocx 文件。查看每一页，包括手写内容，然后保存为 PDF 和 Markdown，或交给你的 AI。",
   choose: "打开笔记",
   dropHint: "或将 .sdocx 文件、文件夹或 .zip 拖放到这里",
+  trySample: "手边没有笔记？试试示例",
   privacy: "隐私至上：笔记只在本设备上打开，绝不会上传。",
   installHint: "安装 Inkport，即可直接从三星笔记分享笔记到这里。",
   howTitle: "把笔记从三星笔记中导出",
@@ -73,6 +74,7 @@ export default {
   reportProblem: "报告问题",
   translate: "改进此翻译",
   credit: "基于 twangodev 的开源 sdocx 解析器构建。",
+  sampleCredit: "示例笔记：SDOCX Compatibility Corpus（CC BY 4.0）。",
   notAffiliated: "与三星无关。三星笔记是 Samsung Electronics 的商标。",
   dropOverlay: "松开即可打开",
 } satisfies Strings;

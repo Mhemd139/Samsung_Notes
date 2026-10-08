@@ -9,6 +9,7 @@ export default {
     "どのスマホやパソコンでも .sdocx ファイルを開けます。手書きを含むすべてのページを表示し、PDF と Markdown で保存したり、AI に渡したりできます。",
   choose: "ノートを開く",
   dropHint: "または .sdocx ファイル、フォルダー、.zip をここにドロップ",
+  trySample: "手元にノートがない場合は、サンプルで試せます",
   privacy: "プライバシー重視の設計：ノートはこのデバイス上で開かれ、アップロードされることはありません。",
   installHint: "Inkport をインストールすると、Samsung Notes から直接ノートを共有できます。",
   howTitle: "Samsung Notes からノートを取り出す",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "問題を報告",
   translate: "翻訳を改善する",
   credit: "twangodev によるオープンソースの sdocx パーサーを利用しています。",
+  sampleCredit: "サンプルノート：SDOCX Compatibility Corpus（CC BY 4.0）。",
   notAffiliated: "Samsung とは関係ありません。Samsung Notes は Samsung Electronics の商標です。",
   dropOverlay: "ドロップして開く",
 } satisfies Strings;

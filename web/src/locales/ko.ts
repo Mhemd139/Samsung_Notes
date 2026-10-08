@@ -9,6 +9,7 @@ export default {
     "어떤 휴대폰이나 컴퓨터에서도 .sdocx 파일을 열어 보세요. 손글씨까지 모든 페이지를 확인하고 PDF와 Markdown으로 저장하거나 AI에게 맡겨 보세요.",
   choose: "노트 열기",
   dropHint: "또는 .sdocx 파일, 폴더, .zip 파일을 여기에 놓으세요",
+  trySample: "지금 노트가 없나요? 예시로 사용해 보세요",
   privacy: "설계부터 비공개: 노트는 이 기기에서만 열리며 절대 업로드되지 않습니다.",
   installHint: "Inkport를 설치하면 Samsung Notes에서 바로 노트를 공유할 수 있습니다.",
   howTitle: "Samsung Notes에서 노트 꺼내기",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "문제 신고",
   translate: "번역 개선하기",
   credit: "twangodev의 오픈 소스 sdocx 파서를 기반으로 만들었습니다.",
+  sampleCredit: "예시 노트: SDOCX Compatibility Corpus (CC BY 4.0).",
   notAffiliated: "Samsung과 관련이 없습니다. Samsung Notes는 Samsung Electronics의 상표입니다.",
   dropOverlay: "놓아서 열기",
 } satisfies Strings;

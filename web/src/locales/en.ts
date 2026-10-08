@@ -7,6 +7,7 @@ export default {
     "Open .sdocx files on any phone or computer. See every page, handwriting included, then save them as PDF and Markdown or hand them to your AI.",
   choose: "Open notes",
   dropHint: "or drop .sdocx files, a folder or a .zip here",
+  trySample: "No notes at hand? Try the samples",
   privacy: "Private by design: your notes are opened on this device and never uploaded.",
   installHint: "Install Inkport to share notes to it straight from Samsung Notes.",
   howTitle: "Get your notes out of Samsung Notes",
@@ -72,6 +73,7 @@ export default {
   reportProblem: "Report a problem",
   translate: "Improve this translation",
   credit: "Built on the open sdocx parser by twangodev.",
+  sampleCredit: "Sample notes: SDOCX Compatibility Corpus (CC BY 4.0).",
   notAffiliated: "Not affiliated with Samsung. Samsung Notes is a trademark of Samsung Electronics.",
   dropOverlay: "Drop to open",
 };

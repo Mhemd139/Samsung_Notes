@@ -8,6 +8,7 @@ export default {
   heroText: "在任何手機或電腦上開啟 .sdocx 檔案。檢視每一頁，包括手寫內容，再儲存為 PDF 和 Markdown，或交給你的 AI。",
   choose: "開啟筆記",
   dropHint: "或將 .sdocx 檔案、資料夾或 .zip 拖放到這裡",
+  trySample: "手邊沒有筆記？試試範例",
   privacy: "隱私優先：筆記只在這台裝置上開啟，絕不會上傳。",
   installHint: "安裝 Inkport，就能直接從 Samsung Notes 分享筆記到這裡。",
   howTitle: "把筆記從 Samsung Notes 匯出",
@@ -73,6 +74,7 @@ export default {
   reportProblem: "回報問題",
   translate: "改善這份翻譯",
   credit: "以 twangodev 的開源 sdocx 解析器打造。",
+  sampleCredit: "範例筆記：SDOCX Compatibility Corpus（CC BY 4.0）。",
   notAffiliated: "與 Samsung 無關。Samsung Notes 是 Samsung Electronics 的商標。",
   dropOverlay: "放開即可開啟",
 } satisfies Strings;

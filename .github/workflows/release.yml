@@ -2,14 +2,15 @@ name: Release
 on:
   push:
     tags: ["v*"]
-permissions:
-  contents: write
-  id-token: write
-  attestations: write
-  artifact-metadata: write
+permissions: {}
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
@@ -31,22 +32,31 @@ jobs:
             samsung-notes-mcp.mcpb
             samsung-notes-mcp-*.mcpb
 
-  # Trusted publishing: npm and the MCP Registry trust this workflow through GitHub's OIDC token, so no secrets are stored.
+  # Trusted publishing: npm and the MCP Registry trust this job through GitHub's OIDC token, so no secrets are stored.
+  # Every tool it runs is pinned, and the registry's publisher is checked against its published checksum.
   publish:
     needs: release
     if: ${{ !contains(github.ref_name, '-') }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      MCP_PUBLISHER_VERSION: v1.8.1
+      MCP_PUBLISHER_SHA256: a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
           node-version: 24
           registry-url: https://registry.npmjs.org
-      - run: npm install -g npm@latest
+      - run: npm install -g npm@11.21.0
       - run: npm ci
       - run: npm publish
       - name: Publish to the MCP Registry
         run: |
-          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          curl -fsSLo mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${MCP_PUBLISHER_SHA256}  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
           ./mcp-publisher login github-oidc
           ./mcp-publisher publish

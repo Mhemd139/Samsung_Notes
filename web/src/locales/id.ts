@@ -9,6 +9,7 @@ export default {
     "Buka file .sdocx di ponsel atau komputer apa pun. Lihat setiap halaman, termasuk tulisan tangan, lalu simpan sebagai PDF dan Markdown atau berikan ke AI Anda.",
   choose: "Buka catatan",
   dropHint: "atau letakkan file .sdocx, folder, atau .zip di sini",
+  trySample: "Tidak punya catatan sekarang? Coba contohnya",
   privacy: "Privat sejak awal: catatan Anda dibuka di perangkat ini dan tidak pernah diunggah.",
   installHint: "Pasang Inkport agar bisa membagikan catatan langsung dari Samsung Notes.",
   howTitle: "Keluarkan catatan Anda dari Samsung Notes",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "Laporkan masalah",
   translate: "Perbaiki terjemahan ini",
   credit: "Dibangun di atas parser sdocx terbuka karya twangodev.",
+  sampleCredit: "Catatan contoh: SDOCX Compatibility Corpus (CC BY 4.0).",
   notAffiliated: "Tidak berafiliasi dengan Samsung. Samsung Notes adalah merek dagang Samsung Electronics.",
   dropOverlay: "Lepaskan untuk membuka",
 } satisfies Strings;

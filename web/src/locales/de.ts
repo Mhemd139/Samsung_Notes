@@ -9,6 +9,7 @@ export default {
     "Öffne .sdocx-Dateien auf jedem Handy oder Computer. Sieh dir jede Seite an, auch Handschrift, und speichere sie als PDF und Markdown oder gib sie deiner KI.",
   choose: "Notizen öffnen",
   dropHint: "oder .sdocx-Dateien, einen Ordner oder eine ZIP-Datei hier ablegen",
+  trySample: "Keine Notizen zur Hand? Probier die Beispiele aus",
   privacy: "Privat von Grund auf: Deine Notizen werden auf diesem Gerät geöffnet und nie hochgeladen.",
   installHint: "Installiere Inkport, um Notizen direkt aus Samsung Notes damit zu teilen.",
   howTitle: "So holst du deine Notizen aus Samsung Notes",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "Problem melden",
   translate: "Diese Übersetzung verbessern",
   credit: "Basiert auf dem offenen sdocx-Parser von twangodev.",
+  sampleCredit: "Beispielnotizen: SDOCX Compatibility Corpus (CC BY 4.0).",
   notAffiliated: "Nicht mit Samsung verbunden. Samsung Notes ist eine Marke von Samsung Electronics.",
   dropOverlay: "Zum Öffnen ablegen",
 } satisfies Strings;

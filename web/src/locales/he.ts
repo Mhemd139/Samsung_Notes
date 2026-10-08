@@ -9,6 +9,7 @@ export default {
     "פתחו קובצי .sdocx בכל טלפון או מחשב. ראו כל עמוד, כולל כתב יד, ושמרו אותם כ-PDF וכ-Markdown או העבירו אותם ל-AI שלכם.",
   choose: "פתיחת פתקים",
   dropHint: "או גררו לכאן קובצי .sdocx, תיקייה או קובץ .zip",
+  trySample: "אין לכם פתקים בהישג יד? נסו את הדוגמאות",
   privacy: "פרטיות כברירת מחדל: הפתקים נפתחים במכשיר הזה ואף פעם לא מועלים.",
   installHint: "התקינו את Inkport כדי לשתף אליו פתקים ישירות מ-Samsung Notes.",
   howTitle: "איך מוציאים את הפתקים מ-Samsung Notes",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "דיווח על בעיה",
   translate: "שיפור התרגום",
   credit: "מבוסס על מנתח sdocx הפתוח של twangodev.",
+  sampleCredit: "פתקים לדוגמה: SDOCX Compatibility Corpus (CC BY 4.0).",
   notAffiliated: "אין קשר ל-Samsung. ‏Samsung Notes הוא סימן מסחרי של Samsung Electronics.",
   dropOverlay: "שחררו כדי לפתוח",
 } satisfies Strings;

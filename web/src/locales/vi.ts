@@ -9,6 +9,7 @@ export default {
     "Mở tệp .sdocx trên mọi điện thoại hoặc máy tính. Xem từng trang, kể cả chữ viết tay, rồi lưu thành PDF và Markdown hoặc gửi cho AI của bạn.",
   choose: "Mở ghi chú",
   dropHint: "hoặc thả tệp .sdocx, thư mục hay tệp .zip vào đây",
+  trySample: "Chưa có ghi chú? Hãy thử các ví dụ",
   privacy: "Riêng tư ngay từ thiết kế: ghi chú được mở trên thiết bị này và không bao giờ được tải lên.",
   installHint: "Cài đặt Inkport để chia sẻ ghi chú trực tiếp từ Samsung Notes.",
   howTitle: "Đưa ghi chú ra khỏi Samsung Notes",
@@ -74,6 +75,7 @@ export default {
   reportProblem: "Báo cáo sự cố",
   translate: "Cải thiện bản dịch này",
   credit: "Xây dựng trên trình phân tích sdocx mã nguồn mở của twangodev.",
+  sampleCredit: "Ghi chú mẫu: SDOCX Compatibility Corpus (CC BY 4.0).",
   notAffiliated: "Không liên kết với Samsung. Samsung Notes là nhãn hiệu của Samsung Electronics.",
   dropOverlay: "Thả để mở",
 } satisfies Strings;
