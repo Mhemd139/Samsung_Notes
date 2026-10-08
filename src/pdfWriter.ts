@@ -19,6 +19,7 @@ const encoder = new TextEncoder();
 
 // One JPEG per page, drawn full-bleed: every script and handwriting survive because the browser or resvg already drew them.
 export function buildPdf(images: PdfImage[], info: PdfInfo): Uint8Array {
+  if (!images.length) throw new Error("A PDF needs at least one page.");
   const chunks: Uint8Array[] = [];
   const offsets: number[] = [];
   let length = 0;

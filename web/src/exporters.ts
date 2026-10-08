@@ -3,11 +3,13 @@ import { cleanName } from "../../src/fileName";
 import { noteMarkdown } from "../../src/markdown";
 import { buildPdf, type PdfImage } from "../../src/pdfWriter";
 import { sheetBands, viewBox, withBand } from "../../src/svg";
-import { openNote, type LibraryNote, type OpenNote } from "./library";
+import { blobOf, openNote, type LibraryNote, type OpenNote } from "./library";
 import { svgToJpeg } from "./raster";
+import { displayName } from "./text-view";
 
 // Short enough that "Downloads\export\<note>\<note>.pdf" stays under Windows' 260-character path limit when unzipped.
 const NAME_BYTES = 80;
+const EXTENSION_BYTES = 12;
 const FILES_DIR = "files";
 const EARLIEST_ZIP_DATE = Date.UTC(1980, 0, 2);
 const encoder = new TextEncoder();
@@ -40,45 +42,78 @@ async function pdfOf(note: LibraryNote, open: OpenNote, onPage?: Progress): Prom
 }
 
 // One folder per note: Markdown with the note's dates, the pages as PDF, and the attached files, all stamped with the note's date.
-export async function exportZip(notes: LibraryNote[], onNote: Progress): Promise<Blob> {
+// A note that fails is left out and named, so one damaged file never costs the whole export.
+export async function exportZip(notes: LibraryNote[], onNote: Progress): Promise<{ blob: Blob; failed: string[] }> {
   const chunks: Uint8Array[] = [];
   const zip = new Zip((error, chunk) => {
     if (error) throw error;
     chunks.push(chunk);
   });
-  const used = new Set<string>();
+  const folders = new Set<string>();
+  const failed: string[] = [];
   for (const [index, note] of notes.entries()) {
     onNote(index + 1, notes.length);
-    const folder = uniqueName(noteFileName(note), used);
-    const date = new Date(Math.max(note.modifiedMs ?? note.createdMs ?? Date.now(), EARLIEST_ZIP_DATE));
-    const open = await openNote(note);
     try {
-      const files = note.attachments.map(({ name }) => ({ name, path: `${FILES_DIR}/${cleanName(name, NAME_BYTES) || "file"}` }));
-      const markdown = noteMarkdown({ ...note, pdf: `${folder}.pdf`, files });
-      add(zip, `${folder}/${folder}.md`, encoder.encode(markdown), date, true);
-      add(zip, `${folder}/${folder}.pdf`, await pdfOf(note, open), date);
-      for (const file of files) {
-        const bytes = open.attachment(file.name);
-        if (bytes) add(zip, `${folder}/${file.path}`, bytes, date);
-      }
-    } finally {
-      open.close();
+      addNote(zip, note, await noteEntries(note, uniqueName(noteFileName(note), "", folders)));
+    } catch (error) {
+      console.error(`Couldn't export “${note.title}”`, error);
+      failed.push(note.title);
     }
   }
   zip.end();
-  return new Blob(chunks as BlobPart[], { type: "application/zip" });
+  return { blob: new Blob(chunks as BlobPart[], { type: "application/zip" }), failed };
 }
 
-function add(zip: Zip, path: string, data: Uint8Array, mtime: Date, compress = false): void {
-  const entry = compress ? new ZipDeflate(path, { level: 6 }) : new ZipPassThrough(path);
-  entry.mtime = mtime;
-  zip.add(entry);
-  entry.push(data, true);
+interface Entry {
+  path: string;
+  data: Uint8Array;
+  compress?: boolean;
 }
 
-function uniqueName(name: string, used: Set<string>): string {
-  let candidate = name;
-  for (let copy = 2; used.has(candidate.toLocaleLowerCase()); copy++) candidate = `${name} (${copy})`;
+// Builds every file of one note before any is added, so a failure leaves no half-written folder in the ZIP.
+async function noteEntries(note: LibraryNote, folder: string): Promise<Entry[]> {
+  const open = await openNote(note);
+  try {
+    const names = new Set<string>();
+    const files = note.attachments.map(({ name }) => ({ name, path: `${FILES_DIR}/${attachmentFileName(name, names)}` }));
+    const pdf = open.pageCount ? `${folder}.pdf` : undefined;
+    const entries: Entry[] = [
+      { path: `${folder}/${folder}.md`, data: encoder.encode(noteMarkdown({ ...note, pdf, files })), compress: true },
+      ...(pdf ? [{ path: `${folder}/${pdf}`, data: await pdfOf(note, open) }] : []),
+    ];
+    for (const file of files) {
+      const data = open.attachment(file.name);
+      if (data) entries.push({ path: `${folder}/${file.path}`, data });
+    }
+    return entries;
+  } finally {
+    open.close();
+  }
+}
+
+function addNote(zip: Zip, note: LibraryNote, entries: Entry[]): void {
+  const mtime = new Date(Math.max(note.modifiedMs ?? note.createdMs ?? Date.now(), EARLIEST_ZIP_DATE));
+  for (const { path, data, compress } of entries) {
+    const entry = compress ? new ZipDeflate(path, { level: 6 }) : new ZipPassThrough(path);
+    entry.mtime = mtime;
+    zip.add(entry);
+    entry.push(data, true);
+  }
+}
+
+export const attachmentFileName = (name: string, used: Set<string>): string => uniqueName(...splitName(displayName(name)), used);
+
+// Cuts the name, never the extension: "invoice.pdf" must stay a PDF however long the name is.
+function splitName(name: string): [stem: string, extension: string] {
+  const dot = name.lastIndexOf(".");
+  const extension = dot > 0 ? cleanName(name.slice(dot + 1), EXTENSION_BYTES).toLowerCase() : "";
+  const stem = cleanName(dot > 0 ? name.slice(0, dot) : name, NAME_BYTES) || "file";
+  return [stem, extension ? `.${extension}` : ""];
+}
+
+function uniqueName(stem: string, extension: string, used: Set<string>): string {
+  let candidate = stem + extension;
+  for (let copy = 2; used.has(candidate.toLocaleLowerCase()); copy++) candidate = `${stem} (${copy})${extension}`;
   used.add(candidate.toLocaleLowerCase());
   return candidate;
 }
@@ -91,9 +126,6 @@ export function downloadBlob(blob: Blob, name: string): void {
   link.remove();
   setTimeout(() => URL.revokeObjectURL(url), 60_000);
 }
-
-export const pdfFile = (pdf: Uint8Array, note: LibraryNote): File =>
-  new File([pdf as BlobPart], `${noteFileName(note)}.pdf`, { type: "application/pdf" });
 
 export const canShareFiles = (): boolean =>
   typeof navigator.canShare === "function" && navigator.canShare({ files: [new File(["%PDF"], "probe.pdf", { type: "application/pdf" })] });

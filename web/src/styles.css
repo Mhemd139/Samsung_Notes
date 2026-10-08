@@ -698,6 +698,10 @@ body[data-view="note"] .topbar {
   padding-top: 26px;
 }
 
+.panel:focus-visible {
+  outline-offset: 6px;
+}
+
 .pages {
   display: grid;
   justify-items: center;
@@ -724,7 +728,14 @@ body[data-view="note"] .topbar {
 }
 
 .page.failed img {
-  min-height: 140px;
+  display: none;
+}
+
+.page.failed figcaption {
+  padding: 48px 16px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  font-size: 0.9375rem;
 }
 
 .page figcaption {
@@ -908,7 +919,8 @@ body[data-view="note"] .topbar {
   align-items: center;
   gap: 12px;
   width: min(580px, calc(100vw - 32px));
-  padding: 12px 12px 12px 18px;
+  padding-block: 12px;
+  padding-inline: 18px 12px;
   border-radius: 16px;
   background: var(--text);
   color: var(--bg);
@@ -971,6 +983,16 @@ body[data-view="note"] .topbar {
 
   .language select {
     max-width: 7rem;
+  }
+}
+
+@media (max-width: 400px) {
+  .language {
+    padding: 0 10px;
+  }
+
+  .language .icon {
+    display: none;
   }
 }
 

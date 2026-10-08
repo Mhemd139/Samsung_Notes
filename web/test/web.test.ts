@@ -1,5 +1,6 @@
 import { zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
+import { attachmentFileName } from "../src/exporters";
 import { sortFiles } from "../src/intake";
 import { LANGUAGES, matchLanguage } from "../src/i18n";
 import { fixtureBytes } from "../../test/helpers.js";
@@ -63,5 +64,20 @@ describe("sortFiles", () => {
       { name: "lecture.snb", reason: "oldFormat" },
       { name: "photos.zip", reason: "notNote" },
     ]);
+  });
+});
+
+describe("attachmentFileName", () => {
+  it("drops the media number, keeps the extension when cutting, and numbers duplicates", () => {
+    const used = new Set<string>();
+    const longHebrew = `${"חשבונית מהאינסטלטור ".repeat(5)}.pdf`;
+    expect(attachmentFileName("0@invoice from the plumber.PDF", used)).toBe("invoice from the plumber.pdf");
+    expect(attachmentFileName(longHebrew, used)).toMatch(/^חשבונית.*\.pdf$/);
+    expect(new TextEncoder().encode(attachmentFileName(longHebrew, new Set())).length).toBeLessThanOrEqual(84);
+    expect(attachmentFileName("1@scan.jpg", used)).toBe("scan.jpg");
+    expect(attachmentFileName("2@scan.jpg", used)).toBe("scan (2).jpg");
+    expect(attachmentFileName("3@Scan.JPG", used)).toBe("Scan (3).jpg");
+    expect(attachmentFileName("4@recording", used)).toBe("recording");
+    expect(attachmentFileName("5@a/b:c?.png", used)).toBe("a_b_c_.png");
   });
 });

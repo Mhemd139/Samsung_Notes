@@ -190,7 +190,7 @@
           </div>
           <p id="ai-tip" class="tip" data-i18n="aiTip">Tip: share the PDF with your AI and ask it to transcribe your handwriting.</p>
         </div>
-        <div class="tabs" role="tablist">
+        <div class="tabs" role="tablist" aria-labelledby="note-title">
           <button id="tab-pages" role="tab" type="button" aria-controls="panel-pages" aria-selected="true" data-i18n="tabPages">Pages</button>
           <button id="tab-text" role="tab" type="button" aria-controls="panel-text" aria-selected="false" tabindex="-1" data-i18n="tabText">Text</button>
           <button id="tab-files" role="tab" type="button" aria-controls="panel-files" aria-selected="false" tabindex="-1">
@@ -198,9 +198,9 @@
             <span id="files-count" class="count"></span>
           </button>
         </div>
-        <div id="panel-pages" class="panel pages" role="tabpanel" aria-labelledby="tab-pages"></div>
-        <div id="panel-text" class="panel text" role="tabpanel" aria-labelledby="tab-text" hidden></div>
-        <div id="panel-files" class="panel files" role="tabpanel" aria-labelledby="tab-files" hidden></div>
+        <div id="panel-pages" class="panel pages" role="tabpanel" aria-labelledby="tab-pages" tabindex="0"></div>
+        <div id="panel-text" class="panel text" role="tabpanel" aria-labelledby="tab-text" tabindex="0" hidden></div>
+        <div id="panel-files" class="panel files" role="tabpanel" aria-labelledby="tab-files" tabindex="0" hidden></div>
       </section>
     </main>
 
@@ -218,10 +218,12 @@
     </footer>
 
     <input id="file-input" type="file" multiple hidden />
+    <div id="status" class="visually-hidden" role="status" aria-live="polite"></div>
+    <div id="alert" class="visually-hidden" role="alert"></div>
     <div id="drop-overlay" class="drop-overlay" hidden>
       <p data-i18n="dropOverlay">Drop to open</p>
     </div>
-    <div id="toast" class="toast" role="status" aria-live="polite" hidden>
+    <div id="toast" class="toast" hidden>
       <p id="toast-text"></p>
       <button id="toast-action" class="button small primary" type="button" hidden></button>
       <button id="toast-close" class="toast-close" type="button" data-i18n-label="dismiss" aria-label="Dismiss">

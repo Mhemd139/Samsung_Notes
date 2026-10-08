@@ -3,6 +3,9 @@ import { sheetBands, viewBox, withBand, cropToInk } from "../../src/svg";
 import { buildNoteText, noteTitle } from "../../src/text";
 import { listZipAttachments, readZipAttachment } from "../../src/zip";
 import { loadParser, openSession } from "./parser";
+import { svgToJpeg } from "./raster";
+
+const THUMBNAIL_WIDTH = 360;
 
 export interface Attachment {
   name: string;
@@ -53,7 +56,7 @@ export async function readNote(file: File): Promise<LibraryNote> {
       pageCount: details.pageCount,
       inkPages: details.inkPages,
       attachments,
-      thumbnail: details.pageCount ? svgUrl(firstSheet(session.render_svg(0, "light"))) : undefined,
+      thumbnail: details.pageCount ? await thumbnailOf(session.render_svg(0, "light")) : undefined,
       searchText: `${title}\n${text}`.toLocaleLowerCase(),
     };
   } finally {
@@ -85,9 +88,19 @@ export async function openNote(note: LibraryNote): Promise<OpenNote> {
 
 export const svgUrl = (svg: string): string => URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
 
-function firstSheet(svg: string): string {
+// TypeScript's DOM types want ArrayBuffer-backed bytes; ours are, so this is the one place that says so.
+export const blobOf = (bytes: Uint8Array, type: string): Blob => new Blob([bytes as BlobPart], { type });
+
+// A small JPEG of the first sheet: a whole-page SVG per card would hold megabytes of strokes for every note.
+async function thumbnailOf(svg: string): Promise<string | undefined> {
   const box = viewBox(svg);
-  if (!box) return svg;
+  if (!box) return undefined;
   const [first] = sheetBands(box.width, box.height);
-  return withBand(svg, box, box.y + first!.top, first!.height);
+  try {
+    const { jpeg } = await svgToJpeg(withBand(svg, box, box.y + first!.top, first!.height), box.width, first!.height, THUMBNAIL_WIDTH);
+    return URL.createObjectURL(blobOf(jpeg, "image/jpeg"));
+  } catch (error) {
+    console.error("Couldn't draw a thumbnail; the card shows none", error);
+    return undefined;
+  }
 }

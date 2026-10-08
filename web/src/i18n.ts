@@ -61,8 +61,14 @@ export function preferredLanguage(): string {
   return "en";
 }
 
-export async function setLanguage(code: string): Promise<void> {
-  strings = code === "en" ? en : (await locales[`./locales/${code}.ts`]!()).default;
+let requested = "";
+
+// Only a choice made in the picker is remembered; a detected language keeps following the browser.
+export async function setLanguage(code: string, remember: boolean): Promise<void> {
+  requested = code;
+  const loaded = code === "en" ? en : (await locales[`./locales/${code}.ts`]!()).default;
+  if (requested !== code) return;
+  strings = loaded;
   current = code;
   const root = document.documentElement;
   root.lang = code;
@@ -74,6 +80,7 @@ export async function setLanguage(code: string): Promise<void> {
   for (const element of document.querySelectorAll<HTMLInputElement>("[data-i18n-placeholder]")) {
     element.placeholder = t(element.dataset.i18nPlaceholder as Key);
   }
+  if (!remember) return;
   try {
     localStorage.setItem(STORAGE_KEY, code);
   } catch {

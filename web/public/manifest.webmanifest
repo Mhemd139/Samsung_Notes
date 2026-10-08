@@ -22,7 +22,7 @@
     "params": { "files": [{ "name": "files", "accept": ["*/*"] }] }
   },
   "file_handlers": [
-    { "action": "./", "accept": { "application/octet-stream": [".sdocx"], "application/zip": [".zip"] } }
+    { "action": "./", "accept": { "application/octet-stream": [".sdocx"] } }
   ],
   "launch_handler": { "client_mode": "focus-existing" }
 }

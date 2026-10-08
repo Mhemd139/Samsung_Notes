@@ -1,4 +1,5 @@
 const FENCE = "```";
+const MEDIA_ID_PREFIX = /^\d+@/;
 const IMAGE_LINE = /^\[image: ([^\]]+)\]$/;
 const CELL_SPLIT = /(?<!\\)\|/;
 
@@ -21,7 +22,7 @@ export function renderNoteText(text: string, imageUrl: (name: string) => string 
     } else if (IMAGE_LINE.test(line)) {
       const name = IMAGE_LINE.exec(line)![1]!;
       const url = imageUrl(name);
-      fragment.append(url ? element("figure", Object.assign(document.createElement("img"), { src: url, alt: "" })) : element("p", line));
+      fragment.append(url ? element("figure", Object.assign(document.createElement("img"), { src: url, alt: displayName(name) })) : element("p", line));
       i++;
     } else if (line.trim()) {
       const start = i;
@@ -35,6 +36,9 @@ export function renderNoteText(text: string, imageUrl: (name: string) => string 
   }
   return fragment;
 }
+
+// Samsung Notes prefixes attachment names with a media number, such as "0@scan.pdf".
+export const displayName = (name: string): string => name.replace(MEDIA_ID_PREFIX, "");
 
 const isBlockStart = (line: string): boolean => line.startsWith(FENCE) || line.startsWith("|") || IMAGE_LINE.test(line);
 

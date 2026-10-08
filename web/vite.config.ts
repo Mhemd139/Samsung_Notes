@@ -29,15 +29,28 @@ function contentSecurityPolicy(): Plugin {
   };
 }
 
-// Precaches every built file so the app opens offline; the hash of the file list makes each deploy a new worker.
+// Only for link previews on other sites; the app never shows it.
+const NOT_PRECACHED = new Set(["og.png"]);
+
+// Precaches every built file so the app opens offline. The version hashes the file list, the page and the public
+// files' contents, so any deploy that changes what users get installs a new worker.
 function serviceWorker(): Plugin {
   return {
     name: "service-worker",
     apply: "build",
     generateBundle(_, bundle) {
-      const files = ["./", ...[...Object.keys(bundle), ...readdirSync(`${root}public`)].filter((file) => file !== "index.html").map((file) => `./${file}`)];
-      const version = createHash("sha256").update(files.join("\n")).digest("hex").slice(0, 12);
-      const source = readFileSync(`${root}sw.js`, "utf8").replace("__VERSION__", version).replace("__FILES__", JSON.stringify(files));
+      const publicFiles = readdirSync(`${root}public`, { withFileTypes: true })
+        .filter((entry) => entry.isFile() && !NOT_PRECACHED.has(entry.name))
+        .map((entry) => entry.name);
+      const built = Object.keys(bundle).filter((file) => file !== "index.html");
+      const files = ["./", ...[...built, ...publicFiles].map((file) => `./${file}`)];
+      const hash = createHash("sha256").update(files.join("\n"));
+      const page = bundle["index.html"];
+      if (page?.type === "asset") hash.update(page.source);
+      for (const name of publicFiles) hash.update(readFileSync(`${root}public/${name}`));
+      const source = readFileSync(`${root}sw.js`, "utf8")
+        .replace("__VERSION__", hash.digest("hex").slice(0, 12))
+        .replace("__FILES__", JSON.stringify(files));
       this.emitFile({ type: "asset", fileName: "sw.js", source });
     },
   };

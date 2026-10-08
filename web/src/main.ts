@@ -1,10 +1,10 @@
 import { formatDate as isoDate } from "../../src/text";
-import { canShareFiles, downloadBlob, exportZip, noteFileName, notePdf, pdfFile } from "./exporters";
-import { formatDate, LANGUAGES, preferredLanguage, setLanguage, t } from "./i18n";
+import { canShareFiles, downloadBlob, exportZip, noteFileName, notePdf } from "./exporters";
+import { formatDate, language, LANGUAGES, preferredLanguage, setLanguage, t } from "./i18n";
 import { droppedFiles, sortFiles } from "./intake";
-import { openNote, readNote, svgUrl, type LibraryNote, type OpenNote } from "./library";
+import { blobOf, openNote, readNote, svgUrl, type Attachment, type LibraryNote, type OpenNote } from "./library";
 import { loadParser } from "./parser";
-import { renderNoteText } from "./text-view";
+import { displayName, renderNoteText } from "./text-view";
 
 type View = "home" | "library" | "note";
 type Tab = "pages" | "text" | "files";
@@ -15,6 +15,7 @@ interface CurrentNote {
   urls: string[];
   fileUrls: Map<string, string>;
   observer: IntersectionObserver;
+  rendered: Set<Tab>;
   pdf?: Uint8Array;
 }
 
@@ -28,11 +29,15 @@ interface LaunchQueue {
 
 const SHARE_CACHE = "inkport-shared";
 const TOAST_MS = 4000;
-const MAX_LISTED_PROBLEMS = 3;
+const MAX_LISTED = 3;
 const IMAGE_TYPES: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
 const AUDIO_TYPES: Record<string, string> = { m4a: "audio/mp4", mp3: "audio/mpeg", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", "3gp": "audio/3gpp" };
 
-const byId = <T extends HTMLElement = HTMLElement>(id: string): T => document.getElementById(id) as T;
+function byId<T extends HTMLElement = HTMLElement>(id: string): T {
+  const element = document.getElementById(id);
+  if (!element) throw new Error(`The page is missing #${id}.`);
+  return element as T;
+}
 
 const ui = {
   views: { home: byId("home"), library: byId("library"), note: byId("note") } satisfies Record<View, HTMLElement>,
@@ -58,16 +63,22 @@ const ui = {
   toast: byId("toast"),
   toastText: byId("toast-text"),
   toastAction: byId<HTMLButtonElement>("toast-action"),
+  status: byId("status"),
+  alert: byId("alert"),
 };
 
 const state = {
   notes: [] as LibraryNote[],
   current: undefined as CurrentNote | undefined,
   busy: false,
+  opening: 0,
   libraryScroll: 0,
   canShare: false,
   installPrompt: undefined as BeforeInstallPromptEvent | undefined,
 };
+
+// Files that arrive while others are still opening wait their turn instead of being dropped.
+let intake: Promise<void> = Promise.resolve();
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,
@@ -81,6 +92,11 @@ function el<K extends keyof HTMLElementTagNameMap>(
 
 const pause = (): Promise<void> => new Promise((resolve) => setTimeout(resolve));
 
+const listed = (items: string[], separator: string): string =>
+  items.slice(0, MAX_LISTED).join(separator) + (items.length > MAX_LISTED ? `${separator}…` : "");
+
+const count = (value: number): string => value.toLocaleString(language());
+
 // ── Views ────────────────────────────────────────────────────────────────
 
 function show(view: View, scrollTo = 0): void {
@@ -91,16 +107,20 @@ function show(view: View, scrollTo = 0): void {
 
 // ── Opening files ───────────────────────────────────────────────────────
 
-async function addFiles(files: File[]): Promise<void> {
-  if (!files.length || state.busy) return;
-  state.busy = true;
+function addFiles(files: File[]): Promise<void> {
+  intake = intake.then(() => openFiles(files));
+  return intake;
+}
+
+async function openFiles(files: File[]): Promise<void> {
+  if (!files.length) return;
   try {
     const { notes: incoming, problems } = await sortFiles(files);
     const messages = problems.map(({ name, reason }) => t(reason, { name }));
     const added: LibraryNote[] = [];
     if (incoming.length) await loadParser();
     for (const [index, file] of incoming.entries()) {
-      progress(t("opening", { done: index + 1, count: incoming.length }));
+      progress(t("opening", { done: index + 1, count: incoming.length }), index === 0);
       try {
         added.push(await readNote(file));
       } catch (error) {
@@ -109,27 +129,26 @@ async function addFiles(files: File[]): Promise<void> {
       }
       await pause();
     }
-    if (messages.length) {
-      const more = messages.length > MAX_LISTED_PROBLEMS ? "\n…" : "";
-      toast(messages.slice(0, MAX_LISTED_PROBLEMS).join("\n") + more, { error: true });
-    } else {
-      hideToast();
-    }
+    if (messages.length) toast(listed(messages, "\n"), { error: true });
+    else hideToast();
     if (!added.length) return;
     state.notes = [...state.notes, ...added].sort((a, b) => (b.modifiedMs ?? 0) - (a.modifiedMs ?? 0));
     renderLibrary();
-    if (state.notes.length === 1) await showNote(added[0]!);
-    else if (!state.current) show("library");
+    if (state.notes.length === 1) {
+      await showNote(added[0]!);
+    } else if (!state.current) {
+      show("library");
+      ui.libraryTitle.focus({ preventScroll: true });
+    }
   } catch (error) {
     console.error(error);
     toast(t("failed"), { error: true });
-  } finally {
-    state.busy = false;
   }
 }
 
-async function takeSharedFiles(): Promise<File[]> {
-  if (!new URLSearchParams(location.search).has("shared") || !("caches" in window)) return [];
+// Returns undefined when the page wasn't opened by Android's share sheet.
+async function takeSharedFiles(): Promise<File[] | undefined> {
+  if (!new URLSearchParams(location.search).has("shared") || !("caches" in window)) return undefined;
   history.replaceState(null, "", location.pathname);
   const cache = await caches.open(SHARE_CACHE);
   const files: File[] = [];
@@ -178,6 +197,7 @@ function card(note: LibraryNote): HTMLLIElement {
 }
 
 function closeAll(): void {
+  state.opening++;
   closeNote();
   for (const note of state.notes) if (note.thumbnail) URL.revokeObjectURL(note.thumbnail);
   state.notes = [];
@@ -189,6 +209,7 @@ function closeAll(): void {
 // ── Note ────────────────────────────────────────────────────────────────
 
 async function showNote(note: LibraryNote, push = true): Promise<void> {
+  const ticket = ++state.opening;
   let open: OpenNote;
   try {
     open = await openNote(note);
@@ -197,16 +218,23 @@ async function showNote(note: LibraryNote, push = true): Promise<void> {
     toast(t("cantOpen", { name: note.file.name }), { error: true });
     return;
   }
-  if (!ui.views.note.hidden) closeNote();
+  // A newer click or "Close all" happened while this note was opening.
+  if (ticket !== state.opening) {
+    open.close();
+    return;
+  }
+  if (state.current) closeNote();
   else state.libraryScroll = window.scrollY;
   const observer = new IntersectionObserver(paintVisiblePages, { rootMargin: "1200px 0px" });
-  state.current = { note, open, urls: [], fileUrls: new Map(), observer };
+  state.current = { note, open, urls: [], fileUrls: new Map(), observer, rendered: new Set() };
+  const empty = open.pageCount === 0;
   ui.noteTitle.textContent = note.title;
-  ui.filesCount.textContent = note.attachments.length ? String(note.attachments.length) : "";
-  ui.share.hidden = !state.canShare;
+  ui.filesCount.textContent = note.attachments.length ? count(note.attachments.length) : "";
+  ui.share.hidden = !state.canShare || empty;
+  ui.pdf.hidden = empty;
   ui.copy.hidden = !note.text;
   ui.aiTip.hidden = !note.inkPages.length;
-  renderNoteTexts();
+  renderMeta();
   renderPages();
   selectTab("pages", false);
   if (push) history.pushState({ note: note.id }, "");
@@ -231,42 +259,40 @@ function backToLibrary(): void {
   ui.grid.querySelector<HTMLElement>(`[data-id="${id}"]`)?.focus({ preventScroll: true });
 }
 
-// Texts that depend on the language, so they are redrawn when it changes.
-function renderNoteTexts(): void {
-  const current = state.current;
-  if (!current) return;
-  const { note, open } = current;
+function renderMeta(): void {
+  const { note } = state.current!;
   ui.noteMeta.textContent = [
     note.modifiedMs === null ? "" : t("edited", { date: formatDate(note.modifiedMs) }),
     t("pages", { count: note.pageCount }),
   ]
     .filter(Boolean)
     .join(" · ");
-  ui.panels.pages.querySelectorAll("img").forEach((image, index) => {
-    image.alt = t("pageAlt", { page: index + 1, count: open.pageCount });
-  });
-  ui.panels.text.replaceChildren(
-    note.text ? renderNoteText(note.text, (name) => (imageType(name) ? attachmentUrl(name) : undefined)) : el("p", { className: "empty" }, t("noText")),
-  );
-  ui.panels.files.replaceChildren(
-    note.attachments.length ? el("ul", { className: "file-list" }, ...note.attachments.map(({ name, size }) => fileItem(name, size))) : el("p", { className: "empty" }, t("noFiles")),
-  );
 }
 
 function renderPages(): void {
   const current = state.current!;
+  if (!current.open.pageCount) {
+    ui.panels.pages.replaceChildren(el("p", { className: "empty" }, t("noPages")));
+    return;
+  }
   const figures = Array.from({ length: current.open.pageCount }, (_, index) => {
-    const figure = el(
-      "figure",
-      { className: "page" },
-      el("img", { alt: t("pageAlt", { page: index + 1, count: current.open.pageCount }), decoding: "async" }),
-      el("figcaption", {}, `${(index + 1).toLocaleString()} / ${current.open.pageCount.toLocaleString()}`),
-    );
+    const figure = el("figure", { className: "page" }, el("img", { decoding: "async" }), el("figcaption"));
     figure.dataset.index = String(index);
     current.observer.observe(figure);
     return figure;
   });
   ui.panels.pages.replaceChildren(...figures);
+  labelPages();
+}
+
+function labelPages(): void {
+  const total = state.current?.open.pageCount ?? 0;
+  ui.panels.pages.querySelectorAll<HTMLElement>(".page").forEach((figure, index) => {
+    figure.querySelector("img")!.alt = t("pageAlt", { page: index + 1, count: total });
+    figure.querySelector("figcaption")!.textContent = figure.classList.contains("failed")
+      ? t("pageFailed")
+      : `${count(index + 1)} / ${count(total)}`;
+  });
 }
 
 function paintVisiblePages(entries: IntersectionObserverEntry[]): void {
@@ -284,34 +310,44 @@ function paintVisiblePages(entries: IntersectionObserverEntry[]): void {
     } catch (error) {
       console.error(`Couldn't draw page ${Number(figure.dataset.index) + 1}`, error);
       figure.classList.add("failed");
+      figure.querySelector("figcaption")!.textContent = t("pageFailed");
     }
   }
 }
 
-function fileItem(name: string, size: number): HTMLLIElement {
-  const label = name.replace(/^\d+@/, "");
+// The Text and Files tabs unpack images and recordings, so they are built only when first opened.
+function renderPanel(tab: Tab): void {
+  const current = state.current!;
+  current.rendered.add(tab);
+  const { note } = current;
+  if (tab === "text") {
+    ui.panels.text.replaceChildren(
+      note.text ? renderNoteText(note.text, (name) => (imageType(name) ? attachmentUrl(name) : undefined)) : el("p", { className: "empty" }, t("noText")),
+    );
+  } else if (tab === "files") {
+    ui.panels.files.replaceChildren(
+      note.attachments.length ? el("ul", { className: "file-list" }, ...note.attachments.map(fileItem)) : el("p", { className: "empty" }, t("noFiles")),
+    );
+  }
+}
+
+function fileItem({ name, size }: Attachment): HTMLLIElement {
+  const label = displayName(name);
   const meta = el("span", { className: "file-meta" }, el("span", { className: "file-name" }, label), el("span", { className: "file-size" }, formatSize(size)));
   const download = el("button", { className: "button small", type: "button" }, t("downloadFile"));
+  download.setAttribute("aria-label", `${t("downloadFile")}: ${label}`);
   download.addEventListener("click", () => {
     const bytes = state.current?.open.attachment(name);
-    if (bytes) downloadBlob(new Blob([bytes as BlobPart], { type: mimeType(name) }), label);
+    if (bytes) downloadBlob(blobOf(bytes, mimeType(name)), label);
+    else toast(t("failed"), { error: true });
   });
   const preview = imageType(name)
-    ? el("img", { className: "file-preview", src: attachmentUrl(name) ?? "", alt: "", loading: "lazy" })
+    ? el("img", { className: "file-preview", src: attachmentUrl(name) ?? "", alt: label, loading: "lazy" })
     : audioType(name)
       ? el("audio", { controls: true, preload: "none", src: attachmentUrl(name) ?? "" })
       : undefined;
-  const actions = el("span", { className: "file-actions" });
-  if (/\.pdf$/i.test(name)) {
-    const openButton = el("button", { className: "button small", type: "button" }, t("openFile"));
-    openButton.addEventListener("click", () => {
-      const url = attachmentUrl(name);
-      if (url) window.open(url, "_blank", "noopener");
-    });
-    actions.append(openButton);
-  }
-  actions.append(download);
-  return el("li", { className: "file" }, ...(preview ? [preview] : []), meta, actions);
+  preview?.setAttribute("aria-label", label);
+  return el("li", { className: "file" }, ...(preview ? [preview] : []), meta, el("span", { className: "file-actions" }, download));
 }
 
 function attachmentUrl(name: string): string | undefined {
@@ -321,7 +357,7 @@ function attachmentUrl(name: string): string | undefined {
   if (cached) return cached;
   const bytes = current.open.attachment(name);
   if (!bytes) return undefined;
-  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: mimeType(name) }));
+  const url = URL.createObjectURL(blobOf(bytes, mimeType(name)));
   current.fileUrls.set(name, url);
   return url;
 }
@@ -335,9 +371,7 @@ const mimeType = (name: string): string =>
 function formatSize(bytes: number): string {
   const units = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
   const power = Math.min(units.length - 1, Math.floor(Math.log(Math.max(bytes, 1)) / Math.log(1024)));
-  return new Intl.NumberFormat(document.documentElement.lang, { style: "unit", unit: units[power], maximumFractionDigits: 1 }).format(
-    bytes / 1024 ** power,
-  );
+  return new Intl.NumberFormat(language(), { style: "unit", unit: units[power], maximumFractionDigits: 1 }).format(bytes / 1024 ** power);
 }
 
 function selectTab(tab: Tab, focus = true): void {
@@ -347,6 +381,7 @@ function selectTab(tab: Tab, focus = true): void {
     button.tabIndex = selected ? 0 : -1;
     ui.panels[name].hidden = !selected;
   }
+  if (tab !== "pages" && !state.current?.rendered.has(tab)) renderPanel(tab);
   if (focus) ui.tabs[tab].focus();
 }
 
@@ -362,20 +397,30 @@ function moveTab(event: KeyboardEvent): void {
   selectTab(order[(next + order.length) % order.length]!);
 }
 
+// Texts that depend on the language, redrawn when it changes.
+function refreshNote(): void {
+  const current = state.current;
+  if (!current) return;
+  renderMeta();
+  if (current.open.pageCount) labelPages();
+  else renderPages();
+  for (const tab of current.rendered) renderPanel(tab);
+}
+
 // ── Actions ─────────────────────────────────────────────────────────────
 
 async function currentPdf(): Promise<Uint8Array> {
   const current = state.current!;
-  current.pdf ??= await notePdf(current.note, (done, count) => progress(t("makingPdf", { done, count })));
+  current.pdf ??= await notePdf(current.note, (done, total) => progress(t("makingPdf", { done, count: total }), done === 1));
   return current.pdf;
 }
 
 async function sharePdf(): Promise<void> {
-  const note = state.current!.note;
+  const { note } = state.current!;
   const pdf = await currentPdf();
   hideToast();
   try {
-    await navigator.share({ files: [pdfFile(pdf, note)], title: note.title });
+    await navigator.share({ files: [new File([blobOf(pdf, "application/pdf")], `${noteFileName(note)}.pdf`, { type: "application/pdf" })], title: note.title });
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") return;
     // Making the PDF took long enough for the browser to forget the tap; one more tap shares it.
@@ -388,9 +433,8 @@ async function sharePdf(): Promise<void> {
 }
 
 async function downloadPdf(): Promise<void> {
-  const note = state.current!.note;
-  const pdf = await currentPdf();
-  downloadBlob(new Blob([pdf as BlobPart], { type: "application/pdf" }), `${noteFileName(note)}.pdf`);
+  const { note } = state.current!;
+  downloadBlob(blobOf(await currentPdf(), "application/pdf"), `${noteFileName(note)}.pdf`);
   hideToast();
 }
 
@@ -401,15 +445,23 @@ async function copyText(): Promise<void> {
 }
 
 async function exportAll(): Promise<void> {
-  const blob = await exportZip(state.notes, (done, count) => progress(t("exporting", { done, count })));
+  const { blob, failed } = await exportZip(state.notes, (done, total) => progress(t("exporting", { done, count: total }), done === 1));
+  const skipped = failed.length ? t("exportSkipped", { names: listed(failed, ", ") }) : "";
+  if (failed.length === state.notes.length) {
+    toast(skipped, { error: true });
+    return;
+  }
   downloadBlob(blob, `Notes export ${isoDate(Date.now())}.zip`);
-  toast(t("exported"));
+  if (skipped) toast(skipped, { error: true });
+  else toast(t("exported"));
 }
 
-async function runAction(action: () => Promise<void>, button?: HTMLButtonElement): Promise<void> {
+// One long task at a time: a PDF or an export holds every page in memory, so two at once could exhaust a phone.
+async function runAction(action: () => Promise<void>): Promise<void> {
   if (state.busy) return;
+  const buttons = [ui.exportAll, ui.pdf, ui.share];
   state.busy = true;
-  if (button) button.disabled = true;
+  buttons.forEach((button) => (button.disabled = true));
   try {
     await action();
   } catch (error) {
@@ -417,13 +469,20 @@ async function runAction(action: () => Promise<void>, button?: HTMLButtonElement
     toast(t("failed"), { error: true });
   } finally {
     state.busy = false;
-    if (button) button.disabled = false;
+    buttons.forEach((button) => (button.disabled = false));
   }
 }
 
-// ── Toast ───────────────────────────────────────────────────────────────
+// ── Messages ────────────────────────────────────────────────────────────
 
 let toastTimer: number | undefined;
+
+// Screen readers hear messages through two always-present live regions; the toast itself is only visual.
+function announce(message: string, urgent: boolean): void {
+  const region = urgent ? ui.alert : ui.status;
+  region.textContent = "";
+  setTimeout(() => (region.textContent = message), 50);
+}
 
 function toast(message: string, options: { error?: boolean; action?: { label: string; run: () => void } } = {}): void {
   clearTimeout(toastTimer);
@@ -439,15 +498,17 @@ function toast(message: string, options: { error?: boolean; action?: { label: st
     };
   }
   ui.toast.hidden = false;
+  announce(message, Boolean(options.error));
   if (!options.error && !options.action) toastTimer = window.setTimeout(hideToast, TOAST_MS);
 }
 
-function progress(message: string): void {
+function progress(message: string, spoken: boolean): void {
   clearTimeout(toastTimer);
   ui.toastText.textContent = message;
   ui.toast.classList.remove("error");
   ui.toastAction.hidden = true;
   ui.toast.hidden = false;
+  if (spoken) announce(message, false);
 }
 
 function hideToast(): void {
@@ -466,12 +527,17 @@ function wireEvents(): void {
     ui.fileInput.value = "";
     void addFiles(files);
   });
-  ui.exportAll.addEventListener("click", () => void runAction(exportAll, ui.exportAll));
+  ui.exportAll.addEventListener("click", () => void runAction(exportAll));
   byId("close-all").addEventListener("click", closeAll);
   byId("back").addEventListener("click", () => (history.state?.note ? history.back() : backToLibrary()));
-  ui.share.addEventListener("click", () => void runAction(sharePdf, ui.share));
-  ui.pdf.addEventListener("click", () => void runAction(downloadPdf, ui.pdf));
-  ui.copy.addEventListener("click", () => void runAction(copyText));
+  ui.share.addEventListener("click", () => void runAction(sharePdf));
+  ui.pdf.addEventListener("click", () => void runAction(downloadPdf));
+  ui.copy.addEventListener("click", () => {
+    copyText().catch((error: unknown) => {
+      console.error(error);
+      toast(t("failed"), { error: true });
+    });
+  });
   for (const [name, button] of Object.entries(ui.tabs) as [Tab, HTMLElement][]) {
     button.addEventListener("click", () => selectTab(name));
     button.addEventListener("keydown", moveTab);
@@ -482,7 +548,7 @@ function wireEvents(): void {
     searchTimer = window.setTimeout(renderLibrary, 120);
   });
   byId("toast-close").addEventListener("click", hideToast);
-  ui.language.addEventListener("change", () => void changeLanguage(ui.language.value));
+  ui.language.addEventListener("change", () => void changeLanguage(ui.language.value, true));
 
   window.addEventListener("popstate", (event) => {
     const id = (event.state as { note?: number } | null)?.note;
@@ -535,34 +601,38 @@ function wireEvents(): void {
   });
 }
 
-async function changeLanguage(code: string): Promise<void> {
+async function changeLanguage(code: string, remember: boolean): Promise<void> {
   try {
-    await setLanguage(code);
+    await setLanguage(code, remember);
   } catch (error) {
     console.error(`Couldn't load the ${code} translation`, error);
     toast(t("failed"), { error: true });
-    ui.language.value = document.documentElement.lang;
+    ui.language.value = language();
     return;
   }
   renderLibrary();
-  renderNoteTexts();
+  refreshNote();
 }
 
 async function start(): Promise<void> {
   ui.language.replaceChildren(...LANGUAGES.map(([code, name]) => el("option", { value: code, lang: code }, name)));
   const code = preferredLanguage();
   ui.language.value = code;
-  if (code !== "en") await changeLanguage(code);
+  if (code !== "en") await changeLanguage(code, false);
   state.canShare = canShareFiles();
   wireEvents();
   if ("serviceWorker" in navigator && import.meta.env.PROD) {
     navigator.serviceWorker.register("./sw.js").catch((error: unknown) => console.error("Offline support is unavailable", error));
   }
   (window as Window & { launchQueue?: LaunchQueue }).launchQueue?.setConsumer(({ files }) => {
-    void Promise.all(files.map((handle) => handle.getFile())).then(addFiles);
+    Promise.all(files.map((handle) => handle.getFile())).then(addFiles, (error: unknown) => {
+      console.error(error);
+      toast(t("failed"), { error: true });
+    });
   });
   const shared = await takeSharedFiles();
-  if (shared.length) await addFiles(shared);
+  if (shared?.length) await addFiles(shared);
+  else if (shared) toast(t("nothingShared"), { error: true });
 }
 
 void start();

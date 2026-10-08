@@ -135,3 +135,9 @@ describe("cleanName", () => {
     expect(cleanName("a/b:c", 100)).toBe("a_b_c");
   });
 });
+
+describe("buildPdf without pages", () => {
+  it("refuses to write an empty PDF", () => {
+    expect(() => buildPdf([], { title: "empty" })).toThrow("at least one page");
+  });
+});

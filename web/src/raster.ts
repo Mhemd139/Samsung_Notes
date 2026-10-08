@@ -5,8 +5,8 @@ const MAX_CANVAS_PIXELS = 16_000_000;
 const JPEG_QUALITY = 0.82;
 
 // The browser draws the page, so every script, emoji and stroke comes out exactly as on screen.
-export async function svgToJpeg(svg: string, width: number, height: number): Promise<PdfImage> {
-  const scale = Math.min(SHEET_PIXEL_WIDTH / width, Math.sqrt(MAX_CANVAS_PIXELS / (width * height)));
+export async function svgToJpeg(svg: string, width: number, height: number, pixelWidth = SHEET_PIXEL_WIDTH): Promise<PdfImage> {
+  const scale = Math.min(pixelWidth / width, Math.sqrt(MAX_CANVAS_PIXELS / (width * height)));
   const canvas = document.createElement("canvas");
   canvas.width = Math.max(1, Math.round(width * scale));
   canvas.height = Math.max(1, Math.round(height * scale));

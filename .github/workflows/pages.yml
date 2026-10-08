@@ -29,6 +29,8 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - run: npm run typecheck
+      - run: npx vitest run web/test test/export.test.ts
       - run: npm run web:build
       - uses: actions/upload-pages-artifact@v4
         with:
