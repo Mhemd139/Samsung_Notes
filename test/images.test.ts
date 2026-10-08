@@ -4,19 +4,17 @@ import jpeg from "jpeg-js";
 import { describe, expect, it } from "vitest";
 import {
   attachmentParts,
-  cropToInk,
   IMAGE_WIDTH,
   imageForClaude,
   imageParts,
   imageSize,
   MAX_IMAGE_BYTES,
   MAX_IMAGE_EDGE,
-  pageParts,
-  partBand,
   renderPage,
   svgToPng,
 } from "../src/images.js";
 import { renderPageSvg } from "../src/sdocx.js";
+import { cropToInk, pageParts, partBand } from "../src/svg.js";
 import { fixtureBytes } from "./helpers.js";
 
 const tallSvg = (width: number, height: number) =>

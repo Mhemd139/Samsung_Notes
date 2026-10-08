@@ -4,11 +4,12 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { NO_FOLDER, type Catalog, type ListResult, type NoteEntry, type Overview } from "./catalog.js";
 import { describeError, NoteError } from "./errors.js";
-import { cropToInk, imageForClaude, imageParts, MAX_IMAGE_BYTES, pageParts, renderPage } from "./images.js";
+import { imageForClaude, imageParts, MAX_IMAGE_BYTES, renderPage } from "./images.js";
 import { PDF_BUDGET_BYTES, readPdf } from "./pdf.js";
 import { fileNameFor, openSaveFolder, subfolders } from "./save.js";
 import { renderPageSvg } from "./sdocx.js";
 import type { AttachmentInfo } from "./sources/types.js";
+import { cropToInk, pageParts } from "./svg.js";
 import { cutText, formatDate, formatDateTime, formatPageRanges } from "./text.js";
 
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };

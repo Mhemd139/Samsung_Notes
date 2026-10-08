@@ -2,6 +2,7 @@ import type { Dirent } from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { NoteError } from "./errors.js";
+import { cleanName } from "./fileName.js";
 
 export interface SaveFolder {
   path: string;
@@ -10,14 +11,12 @@ export interface SaveFolder {
   write(bytes: Uint8Array, name: string): Promise<string>;
 }
 
-const MAX_NAME_BYTES = 200;
 const ROOTED = /^\s*([\\/]|[a-z]:)/i;
-const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])\s*(\.|$)/i;
 const TYPED_EXTENSION = /\.(jpe?g|png|gif|webp|pdf)\s*$/i;
 
 export function targetFolder(root: string, folder: string): string {
   const parts = folder.split(/[\\/]+/).filter(Boolean);
-  const cleaned = parts.map(cleanName);
+  const cleaned = parts.map((part) => cleanName(part));
   if (ROOTED.test(folder) || !parts.length || parts.some((p) => p === "." || p === "..") || cleaned.some((p) => !p)) {
     throw new NoteError(
       `“${folder}” isn't a folder name inside the Save folder. Use a relative name such as “Invoices 2025”, with no drive, leading slash or “..”.`,
@@ -73,30 +72,6 @@ export async function subfolders(root: string): Promise<string[]> {
     .filter((e) => e.isDirectory())
     .map((e) => e.name)
     .sort();
-}
-
-function cleanName(name: string): string {
-  const clean = cutToBytes(
-    name
-      .replace(/[\t\n\r\v\f]/g, " ")
-      .replace(/[\p{Cc}\p{Cf}]/gu, "")
-      .replace(/\s+/g, " ")
-      .replace(/[<>:"/\\|?*]/g, "_")
-      .replace(/^[. ]+|[. ]+$/g, ""),
-    MAX_NAME_BYTES,
-  ).replace(/[. ]+$/, "");
-  return RESERVED.test(clean) ? `_${clean}` : clean;
-}
-
-function cutToBytes(value: string, max: number): string {
-  let bytes = 0;
-  let out = "";
-  for (const char of value) {
-    bytes += Buffer.byteLength(char);
-    if (bytes > max) break;
-    out += char;
-  }
-  return out;
 }
 
 async function entriesOf(path: string): Promise<Dirent[] | undefined> {

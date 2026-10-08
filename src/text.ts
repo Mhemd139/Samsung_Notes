@@ -1,4 +1,4 @@
-import type { TextSpan } from "./sdocx.js";
+import type { TextSpan } from "./note.js";
 
 const OBJECT_CHAR = "￼";
 const MAX_TITLE_LENGTH = 80;

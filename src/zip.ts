@@ -1,5 +1,3 @@
-import { readdir, readFile } from "node:fs/promises";
-import { join, relative, sep } from "node:path";
 import { unzipSync, zipSync } from "fflate";
 
 const MEDIA_DIR = "media/";
@@ -10,17 +8,6 @@ export const isMediaEntry = (name: string): boolean => name.startsWith(MEDIA_DIR
 
 export const isAttachmentEntry = (name: string): boolean =>
   isMediaEntry(name) && !name.endsWith("/") && !INTERNAL_MEDIA.test(name);
-
-export async function zipNoteFolder(dir: string, includeMedia: boolean): Promise<Uint8Array> {
-  const entries: Record<string, Uint8Array> = {};
-  for (const entry of await readdir(dir, { recursive: true, withFileTypes: true })) {
-    if (!entry.isFile()) continue;
-    const path = join(entry.parentPath, entry.name);
-    const name = relative(dir, path).split(sep).join("/");
-    if (includeMedia || !isMediaEntry(name)) entries[name] = await readFile(path);
-  }
-  return zipSync(entries, { level: 0 });
-}
 
 export function stripMedia(sdocx: Uint8Array): Uint8Array {
   return zipSync(unzipSync(sdocx, { filter: (file) => !isMediaEntry(file.name) && !file.name.endsWith("/") }), {

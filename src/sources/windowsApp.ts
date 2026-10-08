@@ -1,8 +1,9 @@
 import type { Dirent } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
+import { zipSync } from "fflate";
 import { describeError, NoteError } from "../errors.js";
-import { isAttachmentEntry, zipNoteFolder } from "../zip.js";
+import { isAttachmentEntry, isMediaEntry } from "../zip.js";
 import { readSamsungIndex, type IndexedNote, type SamsungIndex } from "./samsungIndex.js";
 import { mimeTypeFor, type AttachmentInfo, type NoteRef, type NoteSource } from "./types.js";
 
@@ -51,6 +52,17 @@ export function windowsAppSource(localState: string): NoteSource {
       return { notes, warnings };
     },
   };
+}
+
+export async function zipNoteFolder(dir: string, includeMedia: boolean): Promise<Uint8Array> {
+  const entries: Record<string, Uint8Array> = {};
+  for (const entry of await readdir(dir, { recursive: true, withFileTypes: true })) {
+    if (!entry.isFile()) continue;
+    const path = join(entry.parentPath, entry.name);
+    const name = relative(dir, path).split(sep).join("/");
+    if (includeMedia || !isMediaEntry(name)) entries[name] = await readFile(path);
+  }
+  return zipSync(entries, { level: 0 });
 }
 
 async function folderStamp(dir: string): Promise<string> {
