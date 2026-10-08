@@ -1,0 +1,15 @@
+{
+  "name": "samsung-notes",
+  "owner": { "name": "Mhemd139", "url": "https://github.com/Mhemd139" },
+  "metadata": {
+    "description": "Read Samsung Notes in Claude Code: typed text, handwriting pages, photos and PDFs."
+  },
+  "plugins": [
+    {
+      "name": "samsung-notes",
+      "source": "./",
+      "description": "Read your Samsung Notes: typed text, tables, handwritten pages, and attached photos and PDFs such as invoices. Never changes a note.",
+      "category": "productivity"
+    }
+  ]
+}

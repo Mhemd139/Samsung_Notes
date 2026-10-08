@@ -1,0 +1,24 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.Mhemd139/samsung-notes",
+  "title": "Samsung Notes",
+  "description": "Read Samsung Notes: typed text, tables, handwritten pages, photos and PDFs. Never changes a note.",
+  "version": "0.1.4",
+  "repository": { "url": "https://github.com/Mhemd139/Samsung_Notes", "source": "github" },
+  "websiteUrl": "https://github.com/Mhemd139/Samsung_Notes",
+  "icons": [
+    {
+      "src": "https://raw.githubusercontent.com/Mhemd139/Samsung_Notes/main/web/public/icon-512.png",
+      "mimeType": "image/png",
+      "sizes": ["512x512"]
+    }
+  ],
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "samsung-notes-mcp",
+      "version": "0.1.4",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}

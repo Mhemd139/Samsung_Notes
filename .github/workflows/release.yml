@@ -30,3 +30,23 @@ jobs:
           files: |
             samsung-notes-mcp.mcpb
             samsung-notes-mcp-*.mcpb
+
+  # Trusted publishing: npm and the MCP Registry trust this workflow through GitHub's OIDC token, so no secrets are stored.
+  publish:
+    needs: release
+    if: ${{ !contains(github.ref_name, '-') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+      - run: npm install -g npm@latest
+      - run: npm ci
+      - run: npm publish
+      - name: Publish to the MCP Registry
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          ./mcp-publisher login github-oidc
+          ./mcp-publisher publish

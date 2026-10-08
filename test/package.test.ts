@@ -31,6 +31,17 @@ describe("manifest.json", () => {
   });
 });
 
+describe("listings", () => {
+  // A release publishes all of these at once, so a missed version bump would ship a mismatched listing.
+  it("carry package.json's version and name", () => {
+    const server = readJson<{ name: string; version: string; packages: { identifier: string; version: string }[] }>("server.json");
+    const plugin = readJson<{ version: string }>(".claude-plugin/plugin.json");
+    const { mcpName, name } = readJson<{ mcpName: string; name: string }>("package.json");
+    expect([server.version, server.packages[0]!.version, plugin.version]).toEqual([pkg.version, pkg.version, pkg.version]);
+    expect([server.name, server.packages[0]!.identifier]).toEqual([mcpName, name]);
+  });
+});
+
 describe("built server over stdio", () => {
   it("starts, lists tools and reads an exported note", async () => {
     const noSamsungApp = tempDir("sn-package");
