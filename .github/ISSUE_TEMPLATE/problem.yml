@@ -1,0 +1,36 @@
+name: Something doesn't work
+description: A problem with Inkport (the web app) or the Claude connector.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. **Please don't attach your real notes**: issues are public. Describe what you see, or attach a note you're happy to share with everyone.
+  - type: dropdown
+    id: tool
+    attributes:
+      label: Which one?
+      options:
+        - Inkport (web app)
+        - Claude connector (Claude Desktop or Claude Code)
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, and what happened instead. Paste any error message.
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device, and browser or app
+      placeholder: "e.g. iPhone 15 + Safari, Galaxy S24 + Chrome, Windows 11 + Claude Desktop"
+    validations:
+      required: true
+  - type: textarea
+    id: overview
+    attributes:
+      label: Claude connector only
+      description: Ask Claude “Run notes_overview and show me its problems section”, then paste that part. It lists counts and errors, not what your notes say.
