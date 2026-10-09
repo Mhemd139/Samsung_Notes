@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inspectNote } from "../src/sdocx.js";
-import { buildNoteText, cutText, formatDate, formatPageRanges, noteTitle } from "../src/text.js";
+import { buildNoteText, cutText, formatDate, formatPageRanges, noteTitle } from "../src/core/text.js";
 import { fixtureBytes } from "./helpers.js";
 
 const textOf = (name: string, files: string[] = []) => {

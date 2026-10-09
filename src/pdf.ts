@@ -1,7 +1,7 @@
 import { PDFiumLibrary, type PDFiumDocument, type PDFiumPage } from "@hyzyla/pdfium";
 import { describeError, NoteError } from "./errors.js";
 import { attachmentParts, encodeJpeg, IMAGE_WIDTH, imageForClaude } from "./images.js";
-import { partBand } from "./svg.js";
+import { partBand } from "./core/svg.js";
 
 const MIN_TEXT_CHARS = 20;
 export const PDF_BUDGET_BYTES = 850_000;

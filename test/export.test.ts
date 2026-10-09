@@ -1,11 +1,11 @@
 import { PDFiumLibrary } from "@hyzyla/pdfium";
 import jpeg from "jpeg-js";
 import { describe, expect, it } from "vitest";
-import { cleanName } from "../src/fileName.js";
-import { noteMarkdown } from "../src/markdown.js";
+import { cleanName } from "../src/core/fileName.js";
+import { noteMarkdown } from "../src/core/markdown.js";
 import { readPdf } from "../src/pdf.js";
-import { buildPdf } from "../src/pdfWriter.js";
-import { sheetBands } from "../src/svg.js";
+import { buildPdf } from "../src/core/pdfWriter.js";
+import { sheetBands } from "../src/core/svg.js";
 
 const solidJpeg = (width: number, height: number, [red, green, blue]: [number, number, number]) => {
   const data = new Uint8Array(width * height * 4);

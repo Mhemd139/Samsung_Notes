@@ -1,7 +1,7 @@
 import { Resvg } from "@resvg/resvg-js";
 import jpeg from "jpeg-js";
 import { NoteError } from "./errors.js";
-import { pageParts, partBand, partCount, viewBox, withBand } from "./svg.js";
+import { pageParts, partBand, partCount, viewBox, withBand } from "./core/svg.js";
 
 export const IMAGE_WIDTH = 1200;
 export const MAX_IMAGE_BYTES = 600_000;

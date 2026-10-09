@@ -2,7 +2,7 @@ import type { SourceSetup } from "./config.js";
 import { describeError } from "./errors.js";
 import { inspectNote } from "./sdocx.js";
 import type { AttachmentInfo, NoteRef, NoteSource } from "./sources/types.js";
-import { buildNoteText, noteTitle } from "./text.js";
+import { buildNoteText, noteTitle } from "./core/text.js";
 
 export const NO_FOLDER = "(no folder)";
 export const MAX_LISTED_PROBLEMS = 10;

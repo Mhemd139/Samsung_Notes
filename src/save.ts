@@ -2,7 +2,7 @@ import type { Dirent } from "node:fs";
 import { mkdir, readdir, readFile, stat, writeFile } from "node:fs/promises";
 import { basename, extname, join } from "node:path";
 import { NoteError } from "./errors.js";
-import { cleanName } from "./fileName.js";
+import { cleanName } from "./core/fileName.js";
 
 export interface SaveFolder {
   path: string;

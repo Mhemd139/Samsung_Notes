@@ -1,4 +1,4 @@
-import { formatDate as isoDate } from "../../src/text";
+import { formatDate as isoDate } from "../../src/core/text";
 import { buildAiPack, type AiPack } from "./aiPack";
 import { canShareFiles, downloadBlob, exportZip, noteFileName, notePdf } from "./exporters";
 import { audioType, imageType, mimeType } from "./fileTypes";

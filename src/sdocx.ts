@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import * as bindings from "@twango/sdocx/sdocx_bg.js";
-import { readNoteDetails, readPageSvg, type NoteDetails, type RenderedPage } from "./note.js";
+import { readNoteDetails, readPageSvg, type NoteDetails, type RenderedPage } from "./core/note.js";
 
-export type { NoteDetails, RenderedPage, TextSpan } from "./note.js";
+export type { NoteDetails, RenderedPage, TextSpan } from "./core/note.js";
 
 let loaded = false;
 

@@ -3,7 +3,7 @@ import { readdir, readFile, stat } from "node:fs/promises";
 import { join, relative, sep } from "node:path";
 import { zipSync } from "fflate";
 import { describeError, NoteError } from "../errors.js";
-import { isAttachmentEntry, isMediaEntry } from "../zip.js";
+import { isAttachmentEntry, isMediaEntry } from "../core/zip.js";
 import { readSamsungIndex, type IndexedNote, type SamsungIndex } from "./samsungIndex.js";
 import { mimeTypeFor, type AttachmentInfo, type NoteRef, type NoteSource } from "./types.js";
 

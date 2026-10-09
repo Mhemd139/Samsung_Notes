@@ -9,8 +9,8 @@ import { PDF_BUDGET_BYTES, readPdf } from "./pdf.js";
 import { fileNameFor, openSaveFolder, subfolders } from "./save.js";
 import { renderPageSvg } from "./sdocx.js";
 import type { AttachmentInfo } from "./sources/types.js";
-import { cropToInk, pageParts } from "./svg.js";
-import { cutText, formatDate, formatDateTime, formatPageRanges } from "./text.js";
+import { cropToInk, pageParts } from "./core/svg.js";
+import { cutText, formatDate, formatDateTime, formatPageRanges } from "./core/text.js";
 
 const { version } = createRequire(import.meta.url)("../package.json") as { version: string };
 

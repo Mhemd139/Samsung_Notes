@@ -1,4 +1,4 @@
-import type { PdfImage } from "../../src/pdfWriter";
+import type { PdfImage } from "../../src/core/pdfWriter";
 
 const SHEET_PIXEL_WIDTH = 1400;
 const PHOTO_PIXEL_SIDE = 2400;

@@ -14,7 +14,7 @@ import {
   svgToPng,
 } from "../src/images.js";
 import { renderPageSvg } from "../src/sdocx.js";
-import { cropToInk, pageParts, partBand } from "../src/svg.js";
+import { cropToInk, pageParts, partBand } from "../src/core/svg.js";
 import { fixtureBytes } from "./helpers.js";
 
 const tallSvg = (width: number, height: number) =>

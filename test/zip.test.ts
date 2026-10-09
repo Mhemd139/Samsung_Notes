@@ -4,7 +4,7 @@ import { unzipSync, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 import { inspectNote } from "../src/sdocx.js";
 import { zipNoteFolder } from "../src/sources/windowsApp.js";
-import { isAttachmentEntry, isMediaEntry, listZipAttachments, readZipAttachment, stripMedia } from "../src/zip.js";
+import { isAttachmentEntry, isMediaEntry, listZipAttachments, readZipAttachment, stripMedia } from "../src/core/zip.js";
 import { fixtureBytes, tempDir } from "./helpers.js";
 
 const entryNames = (zip: Uint8Array) => Object.keys(unzipSync(zip)).sort();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { inspectNote, renderPageSvg } from "../src/sdocx.js";
-import { stripMedia } from "../src/zip.js";
+import { stripMedia } from "../src/core/zip.js";
 import { fixtureBytes, rezipFixture, withoutDates } from "./helpers.js";
 
 describe("inspectNote", () => {

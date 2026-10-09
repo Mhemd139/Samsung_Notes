@@ -2,7 +2,7 @@ import type { Dirent } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import { basename, join, relative, sep } from "node:path";
 import { NoteError } from "../errors.js";
-import { listZipAttachments, readZipAttachment, stripMedia } from "../zip.js";
+import { listZipAttachments, readZipAttachment, stripMedia } from "../core/zip.js";
 import { mimeTypeFor, type NoteRef, type NoteSource } from "./types.js";
 
 const NOTE_FILE = /\.sdocx$/i;

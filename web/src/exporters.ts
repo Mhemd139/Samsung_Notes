@@ -1,8 +1,8 @@
 import { Zip, ZipDeflate, ZipPassThrough } from "fflate";
-import { cleanName } from "../../src/fileName";
-import { noteMarkdown } from "../../src/markdown";
-import { buildPdf, type PdfImage } from "../../src/pdfWriter";
-import { sheetBands, viewBox, withBand } from "../../src/svg";
+import { cleanName } from "../../src/core/fileName";
+import { noteMarkdown } from "../../src/core/markdown";
+import { buildPdf, type PdfImage } from "../../src/core/pdfWriter";
+import { sheetBands, viewBox, withBand } from "../../src/core/svg";
 import { blobOf, openNote, type LibraryNote, type OpenNote } from "./library";
 import { svgToJpeg } from "./raster";
 import { displayName } from "./text-view";

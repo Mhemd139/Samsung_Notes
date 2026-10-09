@@ -1,7 +1,7 @@
-import { readNoteDetails, readPageSvg, type NoteSession } from "../../src/note";
-import { sheetBands, viewBox, withBand, cropToInk } from "../../src/svg";
-import { buildNoteText, noteTitle } from "../../src/text";
-import { listZipAttachments, readZipAttachment } from "../../src/zip";
+import { readNoteDetails, readPageSvg, type NoteSession } from "../../src/core/note";
+import { sheetBands, viewBox, withBand, cropToInk } from "../../src/core/svg";
+import { buildNoteText, noteTitle } from "../../src/core/text";
+import { listZipAttachments, readZipAttachment } from "../../src/core/zip";
 import { loadParser, openSession } from "./parser";
 import { svgToJpeg } from "./raster";
 

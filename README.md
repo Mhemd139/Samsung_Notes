@@ -164,7 +164,7 @@ npm run pack:mcpb   # one-click bundle for all platforms
 npm run smoke       # local check against your own notes; prints counts only
 ```
 
-Translations live in [`web/src/locales`](web/src/locales); a native speaker's fix is the most welcome contribution there is.
+Translations live in [`web/src/locales`](web/src/locales); a native speaker's fix is the most welcome contribution there is. See [CONTRIBUTING.md](CONTRIBUTING.md) for the project layout and rules, [CHANGELOG.md](CHANGELOG.md) for what changed, and [SECURITY.md](SECURITY.md) to report a vulnerability privately.
 
 ## Credits and license
 

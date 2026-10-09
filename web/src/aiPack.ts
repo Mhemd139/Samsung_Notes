@@ -1,6 +1,6 @@
-import { formatDate as isoDate, formatDateTime, formatPageRanges } from "../../src/text";
-import { cleanName } from "../../src/fileName";
-import { buildPdf, type PdfImage } from "../../src/pdfWriter";
+import { formatDate as isoDate, formatDateTime, formatPageRanges } from "../../src/core/text";
+import { cleanName } from "../../src/core/fileName";
+import { buildPdf, type PdfImage } from "../../src/core/pdfWriter";
 import { attachmentFileName, noteFileName, pageSheets, uniqueName, type Progress } from "./exporters";
 import { audioType, imageType, isPdf, mimeType } from "./fileTypes";
 import { blobOf, openNote, type LibraryNote } from "./library";
