@@ -27,7 +27,7 @@ export function renderNoteText(text: string, imageUrl: (name: string) => string 
     } else if (line.trim()) {
       const start = i;
       while (i < lines.length && lines[i]!.trim() && !isBlockStart(lines[i]!)) i++;
-      const paragraph = document.createElement("p");
+      const paragraph = Object.assign(document.createElement("p"), { dir: "auto" });
       lines.slice(start, i).forEach((text, index) => paragraph.append(...(index ? [document.createElement("br"), text] : [text])));
       fragment.append(paragraph);
     } else {
@@ -47,14 +47,13 @@ function table(rows: string[]): HTMLElement {
     .filter((row) => !/^\|(\s*:?-+:?\s*\|)+\s*$/.test(row))
     .map((row) => row.trim().replace(/^\||\|$/g, "").split(CELL_SPLIT).map((cell) => cell.trim().replaceAll("\\|", "|")));
   const [head = [], ...body] = cells;
-  const wrap = element(
-    "div",
-    element(
-      "table",
-      element("thead", element("tr", ...head.map((cell) => element("th", cell)))),
-      element("tbody", ...body.map((row) => element("tr", ...row.map((cell) => element("td", cell))))),
-    ),
+  const grid = element(
+    "table",
+    element("thead", element("tr", ...head.map((cell) => element("th", cell)))),
+    element("tbody", ...body.map((row) => element("tr", ...row.map((cell) => element("td", cell))))),
   );
+  grid.dir = "auto";
+  const wrap = element("div", grid);
   wrap.className = "table-wrap";
   return wrap;
 }

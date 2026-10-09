@@ -33,10 +33,10 @@ Samsung Notes files (`.sdocx`) only open on Samsung devices. [Inkport](https://m
 
 - **Every page, as you wrote it:** handwriting, drawings, typed text, tables, photos, PDFs and voice recordings.
 - **Take everything with you:** one ZIP with Markdown and a PDF for every note, original dates kept, ready for Obsidian, Notion or any folder.
-- **Ask any AI:** share a note's PDF with Claude, ChatGPT or Gemini to transcribe handwriting, summarise, or build tables.
+- **Send to AI in one tap:** Claude, ChatGPT or Gemini gets the typed text as a text file, the handwritten pages as images, and every attached photo and PDF. Then ask it to transcribe, summarise or build a table. On a phone it opens the share menu; on a computer it saves the files to drag into the chat. One message holds at most 10 files, so big batches put the page images in one PDF.
 - **Private and free:** it runs in your browser and sends your files nowhere. Its security policy blocks background requests to other sites. No account, no usage limits, works offline, in 21 languages.
 
-**Get your notes out of Samsung Notes:** long-press a note and select the ones you want, then **Share** → **Samsung Notes file**. Save the files anywhere (Google Drive, OneDrive, a USB stick, an email to yourself) and open them in Inkport. On Android, install Inkport from Chrome's menu and share notes straight to it.
+**Get your notes out of Samsung Notes:** long-press a note and select the ones you want, then **Share** → **Samsung Notes file**. On Android, install Inkport from Chrome's menu and pick it in that share menu; then **Send to AI** passes the notes on to your AI app. Anywhere else, save the files (Google Drive, OneDrive, a USB stick, an email to yourself) and open them in Inkport.
 
 ## Connect your notes to Claude
 
@@ -117,7 +117,7 @@ In Claude Code, `claude mcp add --scope user samsung-notes -- npx -y samsung-not
 - **Inkport** runs in your browser. Your files are read on your device and never uploaded, and the page has no analytics or cookies. Its Content Security Policy blocks background requests to any other site. GitHub Pages serves the app's own files, so GitHub may log visits to the page like any website ([GitHub's privacy statement](https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement)).
 - **The connector** reads your notes on your computer. There is no server, no account and no analytics, and it makes no network requests.
 - Neither tool changes, moves or deletes a note. The connector writes files only when you ask it to save attachments: copies, into your Save folder, never overwriting a file.
-- When Claude opens a note, page or attachment during a chat, that content is sent to Claude as part of the chat, like anything you paste, under [Anthropic's privacy policy](https://www.anthropic.com/legal/privacy). The same goes for any AI you share an Inkport PDF with.
+- When Claude opens a note, page or attachment during a chat, that content is sent to Claude as part of the chat, like anything you paste, under [Anthropic's privacy policy](https://www.anthropic.com/legal/privacy). The same goes for any AI you send notes to from Inkport.
 - Every connector release bundle is built by this repository's GitHub workflow, with a provenance attestation. Check a download with `gh attestation verify samsung-notes-mcp.mcpb --repo Mhemd139/Samsung_Notes`.
 - Questions: [open an issue](https://github.com/Mhemd139/Samsung_Notes/issues).
 
@@ -150,7 +150,7 @@ flowchart LR
   folder --> server
   folder --> inkport[Inkport in your browser]
   server <-->|stdio| claude[Claude Desktop / Claude Code / any MCP app]
-  inkport -->|Markdown, PDF, share| anywhere[Obsidian, Notion, any AI]
+  inkport -->|Send to AI, Markdown, PDF| anywhere[Any AI, Obsidian, Notion]
 ```
 
 ## Development

@@ -1,5 +1,6 @@
 import { zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
+import { layout, MAX_FILES, packText } from "../src/aiPack";
 import { attachmentFileName } from "../src/exporters";
 import { sortFiles } from "../src/intake";
 import { LANGUAGES, matchLanguage } from "../src/i18n";
@@ -79,5 +80,36 @@ describe("attachmentFileName", () => {
     expect(attachmentFileName("3@Scan.JPG", used)).toBe("Scan (3).jpg");
     expect(attachmentFileName("4@recording", used)).toBe("recording");
     expect(attachmentFileName("5@a/b:c?.png", used)).toBe("a_b_c_.png");
+  });
+});
+
+describe("Send to AI", () => {
+  it("sends separate files while they fit one message, and one PDF of images when they don't", () => {
+    expect(layout(3, 2)).toEqual({ separate: true, documents: 2 });
+    expect(layout(9, 0)).toEqual({ separate: true, documents: 0 });
+    expect(layout(9, 1)).toEqual({ separate: false, documents: 1 });
+    expect(layout(40, 12)).toEqual({ separate: false, documents: MAX_FILES - 2 });
+    expect(layout(0, 12)).toEqual({ separate: false, documents: MAX_FILES - 1 });
+  });
+
+  it("writes each note's text with its dates and where its pages and files went", () => {
+    const text = packText([
+      {
+        title: "Plumber",
+        createdMs: new Date(2026, 8, 1, 14, 3).getTime(),
+        modifiedMs: null,
+        text: "Total | 120",
+        pages: ['page 2 → "Plumber p2.jpg"'],
+        files: ['"invoice.pdf"'],
+        notSent: ['"memo.m4a" (a voice recording)'],
+      },
+      { title: "Sketch", createdMs: null, modifiedMs: null, text: "", pages: [], files: [], notSent: [] },
+    ]);
+    expect(text).toContain("2 Samsung Notes, shared from Inkport.");
+    expect(text).toContain(
+      ["=== Plumber ===", "Created: 2026-09-01 14:03", 'Pages with handwriting or drawings: page 2 → "Plumber p2.jpg"', 'Attached: "invoice.pdf"', 'Not sent: "memo.m4a" (a voice recording)', "", "Total | 120"].join("\n"),
+    );
+    expect(text).toContain("=== Sketch ===\n\n(No typed text.)\n");
+    expect(text).not.toContain("Modified:");
   });
 });

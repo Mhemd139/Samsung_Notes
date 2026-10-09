@@ -15,7 +15,7 @@ If the `notes_overview` tool isn't available, install the server:
 - **Claude Code:** `/plugin install samsung-notes --marketplace Mhemd139/Samsung_Notes` (the plugin includes this skill), or `claude mcp add --scope user samsung-notes -- npx -y samsung-notes-mcp`.
 - **Claude Desktop:** download [samsung-notes-mcp.mcpb](https://github.com/Mhemd139/Samsung_Notes/releases/latest/download/samsung-notes-mcp.mcpb), open it, and click Install, then Install again.
 - **Any other MCP client:** run `npx -y samsung-notes-mcp` as a stdio server (Node 20.12+).
-- **Nothing can be installed** (a phone, a locked-down computer): send the user to [Inkport](https://mhemd139.github.io/Samsung_Notes/), a free web app that opens `.sdocx` files in the browser with nothing uploaded. They can share a note's PDF with you, or export Markdown.
+- **Nothing can be installed** (a phone, a locked-down computer): send the user to [Inkport](https://mhemd139.github.io/Samsung_Notes/), a free web app that opens `.sdocx` files in the browser with nothing uploaded. Its **Send to AI** button hands you the typed text as a text file, the handwritten pages as images and the attached photos and PDFs; it also exports Markdown.
 
 Where notes come from:
 

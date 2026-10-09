@@ -72,7 +72,7 @@
         <div class="hero">
           <h1 data-i18n="heroTitle">Your Samsung Notes, anywhere</h1>
           <p class="lead" data-i18n="heroText">
-            Open .sdocx files on any phone or computer. See every page, handwriting included, then save them as PDF and Markdown or hand them to your AI.
+            Open .sdocx files on any phone or computer. See every page, handwriting included, send notes to your AI in one tap, or save them as PDF and Markdown.
           </p>
           <div id="dropzone" class="dropzone">
             <button id="open" class="button primary large" type="button">
@@ -94,7 +94,8 @@
           <ol>
             <li data-i18n="how1">In Samsung Notes, long-press a note, then select all the notes you want.</li>
             <li data-i18n="how2">Tap Share, then Samsung Notes file.</li>
-            <li data-i18n="how3">Save them to your files or cloud drive, then open them here. On Android, install this app to share them straight to it.</li>
+            <li data-i18n="how3">On Android, install Inkport and pick it in the share menu. Anywhere else, save the files and open them here.</li>
+            <li data-i18n="how4">Tap Send to AI and pick Claude, ChatGPT or Gemini, or tap Export all to keep a copy.</li>
           </ol>
         </section>
 
@@ -112,7 +113,7 @@
           <article>
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z" /><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z" /></svg>
             <h3 data-i18n="featAiTitle">Ask any AI</h3>
-            <p data-i18n="featAiText">Share a note with Claude, ChatGPT or Gemini to transcribe handwriting, summarise or build tables.</p>
+            <p data-i18n="featAiText">One tap sends notes to Claude, ChatGPT or Gemini: typed text as text, handwritten pages as images, and every attached photo and PDF.</p>
           </article>
           <article>
             <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z" /><path d="m9 12 2 2 4-4" /></svg>
@@ -140,6 +141,12 @@
               <a href="https://github.com/Mhemd139/Samsung_Notes#install" data-i18n="faq3link">Set up the connector</a>
             </p>
           </details>
+          <details>
+            <summary data-i18n="faq4q">What does Send to AI send?</summary>
+            <p data-i18n="faq4a">
+              A text file with each note's typed text and dates, images of the pages with handwriting or drawings, and the attached photos and PDFs, at most 10 files per message. On a phone it opens the share menu so you pick the app; on a computer it saves the files for you to drag into the chat. Inkport itself has no server, so nothing passes through it.
+            </p>
+          </details>
         </section>
       </section>
 
@@ -151,7 +158,11 @@
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
               <span data-i18n="addMore">Add notes</span>
             </button>
-            <button id="export-all" class="button primary" type="button">
+            <button id="send-all" class="button primary" type="button">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z" /><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z" /></svg>
+              <span id="send-all-label"></span>
+            </button>
+            <button id="export-all" class="button" type="button">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11" /><path d="m7 10 5 5 5-5" /><path d="M5 20h14" /></svg>
               <span data-i18n="exportAll">Export all (ZIP)</span>
             </button>
@@ -163,6 +174,7 @@
           <span class="visually-hidden" data-i18n="search">Search notes</span>
           <input id="search" type="search" autocomplete="off" data-i18n-placeholder="search" placeholder="Search notes" />
         </label>
+        <p id="ai-hint" class="tip" hidden data-i18n="aiHint">Send to AI sends the notes shown here. Search to send fewer.</p>
         <p id="no-matches" class="empty" hidden data-i18n="noMatches">No notes match your search.</p>
         <ul id="grid" class="grid"></ul>
       </section>
@@ -176,9 +188,13 @@
           <h1 id="note-title" tabindex="-1"></h1>
           <p id="note-meta" class="meta"></p>
           <div class="actions">
-            <button id="share" class="button primary" type="button" hidden>
+            <button id="send" class="button primary" type="button">
+              <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l1.8 4.7 4.7 1.8-4.7 1.8L12 16l-1.8-4.7-4.7-1.8 4.7-1.8z" /><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2-2.2-.8 2.2-.8z" /></svg>
+              <span data-i18n="sendToAi">Send to AI</span>
+            </button>
+            <button id="share" class="button" type="button" hidden>
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3" /><circle cx="6" cy="12" r="3" /><circle cx="18" cy="19" r="3" /><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" /></svg>
-              <span data-i18n="share">Share</span>
+              <span data-i18n="share">Share PDF</span>
             </button>
             <button id="pdf" class="button" type="button">
               <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v11" /><path d="m7 10 5 5 5-5" /><path d="M5 20h14" /></svg>
@@ -189,7 +205,7 @@
               <span data-i18n="copyText">Copy text</span>
             </button>
           </div>
-          <p id="ai-tip" class="tip" data-i18n="aiTip">Tip: share the PDF with your AI and ask it to transcribe your handwriting.</p>
+          <p class="tip" data-i18n="aiTip">Send to AI gives Claude, ChatGPT or Gemini this note's text, its handwritten pages and its files. Then ask anything: transcribe, summarise, make a table.</p>
         </div>
         <div class="tabs" role="tablist" aria-labelledby="note-title">
           <button id="tab-pages" role="tab" type="button" aria-controls="panel-pages" aria-selected="true" data-i18n="tabPages">Pages</button>

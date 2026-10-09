@@ -31,14 +31,20 @@ async function pdfOf(note: LibraryNote, open: OpenNote, onPage?: Progress): Prom
   const images: PdfImage[] = [];
   for (let index = 0; index < open.pageCount; index++) {
     onPage?.(index + 1, open.pageCount);
-    const svg = open.page(index);
-    const box = viewBox(svg);
-    if (!box) throw new Error(`Page ${index + 1} of “${note.title}” has no size.`);
-    for (const band of sheetBands(box.width, box.height)) {
-      images.push(await svgToJpeg(withBand(svg, box, box.y + band.top, band.height), box.width, band.height));
-    }
+    images.push(...(await pageSheets(note, open, index)));
   }
   return buildPdf(images, { title: note.title, createdMs: note.createdMs, modifiedMs: note.modifiedMs });
+}
+
+export async function pageSheets(note: LibraryNote, open: OpenNote, index: number): Promise<PdfImage[]> {
+  const svg = open.page(index);
+  const box = viewBox(svg);
+  if (!box) throw new Error(`Page ${index + 1} of “${note.title}” has no size.`);
+  const sheets: PdfImage[] = [];
+  for (const band of sheetBands(box.width, box.height)) {
+    sheets.push(await svgToJpeg(withBand(svg, box, box.y + band.top, band.height), box.width, band.height));
+  }
+  return sheets;
 }
 
 // One folder per note: Markdown with the note's dates, the pages as PDF, and the attached files, all stamped with the note's date.
@@ -111,7 +117,7 @@ function splitName(name: string): [stem: string, extension: string] {
   return [stem, extension ? `.${extension}` : ""];
 }
 
-function uniqueName(stem: string, extension: string, used: Set<string>): string {
+export function uniqueName(stem: string, extension: string, used: Set<string>): string {
   let candidate = stem + extension;
   for (let copy = 2; used.has(candidate.toLocaleLowerCase()); copy++) candidate = `${stem} (${copy})${extension}`;
   used.add(candidate.toLocaleLowerCase());

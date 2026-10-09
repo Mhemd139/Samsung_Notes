@@ -1,5 +1,7 @@
 import { formatDate as isoDate } from "../../src/text";
+import { buildAiPack, type AiPack } from "./aiPack";
 import { canShareFiles, downloadBlob, exportZip, noteFileName, notePdf } from "./exporters";
+import { audioType, imageType, mimeType } from "./fileTypes";
 import { formatDate, language, LANGUAGES, preferredLanguage, setLanguage, t } from "./i18n";
 import { droppedFiles, sortFiles } from "./intake";
 import { blobOf, openNote, readNote, svgUrl, type Attachment, type LibraryNote, type OpenNote } from "./library";
@@ -31,8 +33,6 @@ const SHARE_CACHE = "inkport-shared";
 const SAMPLES = ["04-marker4-highlighter", "03-image-placement", "02-shapes-and-dot-calibration", "01-basic-formatting"];
 const TOAST_MS = 4000;
 const MAX_LISTED = 3;
-const IMAGE_TYPES: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", gif: "image/gif", webp: "image/webp" };
-const AUDIO_TYPES: Record<string, string> = { m4a: "audio/mp4", mp3: "audio/mpeg", aac: "audio/aac", wav: "audio/wav", ogg: "audio/ogg", "3gp": "audio/3gpp" };
 
 function byId<T extends HTMLElement = HTMLElement>(id: string): T {
   const element = document.getElementById(id);
@@ -48,12 +48,15 @@ const ui = {
   noMatches: byId("no-matches"),
   libraryTitle: byId("library-title"),
   exportAll: byId<HTMLButtonElement>("export-all"),
+  sendAll: byId<HTMLButtonElement>("send-all"),
+  sendAllLabel: byId("send-all-label"),
+  aiHint: byId("ai-hint"),
   noteTitle: byId("note-title"),
   noteMeta: byId("note-meta"),
+  send: byId<HTMLButtonElement>("send"),
   share: byId<HTMLButtonElement>("share"),
   pdf: byId<HTMLButtonElement>("pdf"),
   copy: byId<HTMLButtonElement>("copy"),
-  aiTip: byId("ai-tip"),
   tabs: { pages: byId("tab-pages"), text: byId("tab-text"), files: byId("tab-files") } satisfies Record<Tab, HTMLElement>,
   panels: { pages: byId("panel-pages"), text: byId("panel-text"), files: byId("panel-files") } satisfies Record<Tab, HTMLElement>,
   filesCount: byId("files-count"),
@@ -75,6 +78,7 @@ const state = {
   opening: 0,
   libraryScroll: 0,
   canShare: false,
+  pack: undefined as (AiPack & { key: string }) | undefined,
   installPrompt: undefined as BeforeInstallPromptEvent | undefined,
 };
 
@@ -178,12 +182,19 @@ async function takeSharedFiles(): Promise<File[] | undefined> {
 
 // ── Library ─────────────────────────────────────────────────────────────
 
-function renderLibrary(): void {
+function visibleNotes(): LibraryNote[] {
   const query = ui.search.value.trim().toLocaleLowerCase();
-  const visible = query ? state.notes.filter((note) => note.searchText.includes(query)) : state.notes;
+  return query ? state.notes.filter((note) => note.searchText.includes(query)) : state.notes;
+}
+
+function renderLibrary(): void {
+  const visible = visibleNotes();
   ui.libraryTitle.textContent = t("libraryTitle", { count: state.notes.length });
   ui.grid.replaceChildren(...visible.map(card));
   ui.noMatches.hidden = visible.length > 0;
+  ui.sendAll.hidden = !visible.length;
+  ui.sendAllLabel.textContent = t("sendCount", { count: visible.length });
+  ui.aiHint.hidden = state.notes.length < 2;
 }
 
 function card(note: LibraryNote): HTMLLIElement {
@@ -199,7 +210,7 @@ function card(note: LibraryNote): HTMLLIElement {
     el(
       "span",
       { className: "card-body" },
-      el("span", { className: "card-title" }, note.title),
+      el("span", { className: "card-title" }, el("bdi", {}, note.title)),
       el("span", { className: "card-meta" }, details.filter(Boolean).join(" · ")),
       ...(badges.length ? [el("span", { className: "badges" }, ...badges)] : []),
     ),
@@ -214,6 +225,7 @@ function closeAll(): void {
   closeNote();
   for (const note of state.notes) if (note.thumbnail) URL.revokeObjectURL(note.thumbnail);
   state.notes = [];
+  state.pack = undefined;
   ui.search.value = "";
   history.replaceState(null, "", location.pathname);
   show("home");
@@ -241,12 +253,11 @@ async function showNote(note: LibraryNote, push = true): Promise<void> {
   const observer = new IntersectionObserver(paintVisiblePages, { rootMargin: "1200px 0px" });
   state.current = { note, open, urls: [], fileUrls: new Map(), observer, rendered: new Set() };
   const empty = open.pageCount === 0;
-  ui.noteTitle.textContent = note.title;
+  ui.noteTitle.replaceChildren(el("bdi", {}, note.title));
   ui.filesCount.textContent = note.attachments.length ? count(note.attachments.length) : "";
   ui.share.hidden = !state.canShare || empty;
   ui.pdf.hidden = empty;
   ui.copy.hidden = !note.text;
-  ui.aiTip.hidden = !note.inkPages.length;
   renderMeta();
   renderPages();
   selectTab("pages", false);
@@ -346,7 +357,7 @@ function renderPanel(tab: Tab): void {
 
 function fileItem({ name, size }: Attachment): HTMLLIElement {
   const label = displayName(name);
-  const meta = el("span", { className: "file-meta" }, el("span", { className: "file-name" }, label), el("span", { className: "file-size" }, formatSize(size)));
+  const meta = el("span", { className: "file-meta" }, el("span", { className: "file-name" }, el("bdi", {}, label)), el("span", { className: "file-size" }, formatSize(size)));
   const download = el("button", { className: "button small", type: "button" }, t("downloadFile"));
   download.setAttribute("aria-label", `${t("downloadFile")}: ${label}`);
   download.addEventListener("click", () => {
@@ -374,12 +385,6 @@ function attachmentUrl(name: string): string | undefined {
   current.fileUrls.set(name, url);
   return url;
 }
-
-const extension = (name: string): string => name.slice(name.lastIndexOf(".") + 1).toLowerCase();
-const imageType = (name: string): string | undefined => IMAGE_TYPES[extension(name)];
-const audioType = (name: string): string | undefined => AUDIO_TYPES[extension(name)];
-const mimeType = (name: string): string =>
-  imageType(name) ?? audioType(name) ?? (extension(name) === "pdf" ? "application/pdf" : "application/octet-stream");
 
 function formatSize(bytes: number): string {
   const units = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
@@ -445,6 +450,39 @@ async function sharePdf(): Promise<void> {
   }
 }
 
+// Phones share straight into the AI app; computers have no such menu, so the files land in Downloads.
+async function sendToAi(notes: LibraryNote[]): Promise<void> {
+  const key = notes.map(({ id }) => id).join();
+  if (state.pack?.key !== key) {
+    state.pack = undefined;
+    state.pack = { key, ...(await buildAiPack(notes, (done, total) => progress(t("preparing", { done, count: total }), done === 1))) };
+  }
+  const { files, incomplete } = state.pack;
+  if (sharesToApps() && navigator.canShare({ files })) {
+    try {
+      await navigator.share({ files });
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") {
+        hideToast();
+        return;
+      }
+      // Preparing took long enough for the browser to forget the tap; one more tap sends it.
+      if (error instanceof DOMException && error.name === "NotAllowedError") {
+        toast(t("aiReady"), { action: { label: t("sendToAi"), run: () => void runAction(() => sendToAi(notes)) } });
+        return;
+      }
+      throw error;
+    }
+    if (incomplete) toast(t("aiPartial"), { error: true });
+    else hideToast();
+    return;
+  }
+  files.forEach((file) => downloadBlob(file, file.name));
+  toast(incomplete ? `${t("aiSaved", { count: files.length })} ${t("aiPartial")}` : t("aiSaved", { count: files.length }), { error: incomplete });
+}
+
+const sharesToApps = (): boolean => state.canShare && matchMedia("(pointer: coarse)").matches;
+
 async function downloadPdf(): Promise<void> {
   const { note } = state.current!;
   downloadBlob(blobOf(await currentPdf(), "application/pdf"), `${noteFileName(note)}.pdf`);
@@ -472,7 +510,7 @@ async function exportAll(): Promise<void> {
 // One long task at a time: a PDF or an export holds every page in memory, so two at once could exhaust a phone.
 async function runAction(action: () => Promise<void>): Promise<void> {
   if (state.busy) return;
-  const buttons = [ui.exportAll, ui.pdf, ui.share];
+  const buttons = [ui.exportAll, ui.sendAll, ui.send, ui.pdf, ui.share];
   state.busy = true;
   buttons.forEach((button) => (button.disabled = true));
   try {
@@ -547,6 +585,8 @@ function wireEvents(): void {
     void addFiles(files);
   });
   ui.exportAll.addEventListener("click", () => void runAction(exportAll));
+  ui.sendAll.addEventListener("click", () => void runAction(() => sendToAi(visibleNotes())));
+  ui.send.addEventListener("click", () => void runAction(() => sendToAi([state.current!.note])));
   byId("close-all").addEventListener("click", closeAll);
   byId("back").addEventListener("click", () => (history.state?.note ? history.back() : backToLibrary()));
   ui.share.addEventListener("click", () => void runAction(sharePdf));
