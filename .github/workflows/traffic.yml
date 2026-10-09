@@ -1,0 +1,39 @@
+name: Traffic
+# GitHub keeps traffic for 14 days only. This saves a daily snapshot to the `stats` branch, so the history stays.
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+permissions: {}
+jobs:
+  save:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: stats
+      - name: Save today's numbers
+        env:
+          # A fine-grained token with "Administration: read" on this repo; the traffic API needs it.
+          GH_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
+          REPO: ${{ github.repository }}
+        run: |
+          day="$(date -u +%F)"
+          mkdir -p traffic
+          jq -n \
+            --argjson views "$(gh api "repos/$REPO/traffic/views")" \
+            --argjson clones "$(gh api "repos/$REPO/traffic/clones")" \
+            --argjson referrers "$(gh api "repos/$REPO/traffic/popular/referrers")" \
+            --argjson paths "$(gh api "repos/$REPO/traffic/popular/paths")" \
+            --argjson repo "$(gh api "repos/$REPO" --jq '{stars: .stargazers_count, forks: .forks_count, watchers: .subscribers_count, open_issues: .open_issues_count}')" \
+            --argjson mcpb "$(gh api "repos/$REPO/releases" --jq '[.[] | {tag: .tag_name, downloads: ([.assets[].download_count] | add)}]')" \
+            --argjson npm "$(curl -fsS https://api.npmjs.org/downloads/point/last-day/samsung-notes-mcp)" \
+            '{views: $views, clones: $clones, referrers: $referrers, paths: $paths, repo: $repo, mcpb: $mcpb, npm: $npm}' \
+            > "traffic/$day.json"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add traffic
+          git commit -m "Traffic $day"
+          git push
