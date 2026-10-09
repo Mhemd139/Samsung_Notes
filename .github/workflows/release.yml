@@ -53,6 +53,16 @@ jobs:
       - run: npm install -g npm@11.21.0
       - run: npm ci
       - run: npm publish
+      # npm takes a few minutes to serve a new version, and the registry rejects versions npm doesn't serve yet.
+      - name: Wait until npm serves the new version
+        run: |
+          url="https://registry.npmjs.org/samsung-notes-mcp/$(node -p "require('./package.json').version")"
+          for attempt in $(seq 60); do
+            curl -fsS -o /dev/null "$url" 2>/dev/null && exit 0
+            sleep 10
+          done
+          echo "npm still doesn't serve $url after 10 minutes" >&2
+          exit 1
       - name: Publish to the MCP Registry
         run: |
           curl -fsSLo mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/download/${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
