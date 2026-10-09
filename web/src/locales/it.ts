@@ -42,7 +42,7 @@ export default {
   exportAll: "Esporta tutto (ZIP)",
   sendToAi: "Invia all'IA",
   sendCount: "Invia all'IA ({count})",
-  aiHint: "Invia all'IA manda le note visualizzate qui. Cerca per mandarne meno.",
+  aiHint: "Invia all'IA manda le note visualizzate qui: tutto il loro testo digitato in un unico file di testo, più le pagine scritte a mano e i file allegati. Cerca per mandarne meno.",
   closeAll: "Chiudi tutto",
   search: "Cerca nelle note",
   noMatches: "Nessuna nota corrisponde alla ricerca.",

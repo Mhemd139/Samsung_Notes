@@ -42,7 +42,7 @@ export default {
   exportAll: "Alles exporteren (ZIP)",
   sendToAi: "Verstuur naar AI",
   sendCount: "Verstuur naar AI ({count})",
-  aiHint: "Met Verstuur naar AI stuur je de notities die hier staan. Zoek om er minder te sturen.",
+  aiHint: "Met Verstuur naar AI stuur je de notities die hier staan: al hun getypte tekst in één tekstbestand, plus hun handgeschreven pagina's en bijlagen. Zoek om er minder te sturen.",
   closeAll: "Alles sluiten",
   search: "Notities zoeken",
   noMatches: "Geen notities gevonden voor je zoekopdracht.",

@@ -42,7 +42,7 @@ export default {
   exportAll: "Xuất tất cả (ZIP)",
   sendToAi: "Gửi cho AI",
   sendCount: "Gửi cho AI ({count})",
-  aiHint: "Gửi cho AI gửi các ghi chú đang hiển thị ở đây. Tìm kiếm để gửi ít hơn.",
+  aiHint: "Gửi cho AI gửi các ghi chú đang hiển thị ở đây: toàn bộ văn bản đã gõ trong một tệp văn bản, cùng các trang viết tay và tệp đính kèm. Tìm kiếm để gửi ít hơn.",
   closeAll: "Đóng tất cả",
   search: "Tìm ghi chú",
   noMatches: "Không có ghi chú nào khớp với tìm kiếm.",

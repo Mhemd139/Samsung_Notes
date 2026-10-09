@@ -42,7 +42,7 @@ export default {
   exportAll: "Eksportuj wszystko (ZIP)",
   sendToAi: "Wyślij do AI",
   sendCount: "Wyślij do AI ({count})",
-  aiHint: "Przycisk Wyślij do AI wysyła widoczne tu notatki. Wyszukaj, aby wysłać mniej.",
+  aiHint: "Przycisk Wyślij do AI wysyła widoczne tu notatki: cały ich wpisany tekst w jednym pliku tekstowym, a także strony odręczne i załączone pliki. Wyszukaj, aby wysłać mniej.",
   closeAll: "Zamknij wszystko",
   search: "Szukaj w notatkach",
   noMatches: "Żadna notatka nie pasuje do wyszukiwania.",

@@ -42,7 +42,7 @@ export default {
   exportAll: "Ekspor semua (ZIP)",
   sendToAi: "Kirim ke AI",
   sendCount: "Kirim ke AI ({count})",
-  aiHint: "Kirim ke AI mengirim catatan yang tampil di sini. Cari untuk mengirim lebih sedikit.",
+  aiHint: "Kirim ke AI mengirim catatan yang tampil di sini: semua teks ketikannya dalam satu file teks, ditambah halaman tulisan tangan dan file lampirannya. Cari untuk mengirim lebih sedikit.",
   closeAll: "Tutup semua",
   search: "Cari catatan",
   noMatches: "Tidak ada catatan yang cocok dengan pencarian Anda.",

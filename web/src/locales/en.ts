@@ -40,7 +40,7 @@ export default {
   exportAll: "Export all (ZIP)",
   sendToAi: "Send to AI",
   sendCount: "Send to AI ({count})",
-  aiHint: "Send to AI sends the notes shown here. Search to send fewer.",
+  aiHint: "Send to AI sends the notes shown here: all their typed text in one text file, plus their handwritten pages and attached files. Search to send fewer.",
   closeAll: "Close all",
   search: "Search notes",
   noMatches: "No notes match your search.",

@@ -42,7 +42,7 @@ export default {
   exportAll: "Alle exportieren (ZIP)",
   sendToAi: "An KI senden",
   sendCount: "An KI senden ({count})",
-  aiHint: "An KI senden sendet die Notizen, die hier angezeigt werden. Suche, um weniger zu senden.",
+  aiHint: "An KI senden sendet die hier angezeigten Notizen: ihren gesamten getippten Text in einer Textdatei sowie ihre handschriftlichen Seiten und angehängten Dateien. Suche, um weniger zu senden.",
   closeAll: "Alle schließen",
   search: "Notizen durchsuchen",
   noMatches: "Keine Notiz passt zu deiner Suche.",

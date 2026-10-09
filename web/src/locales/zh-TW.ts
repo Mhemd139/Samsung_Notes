@@ -41,7 +41,7 @@ export default {
   exportAll: "全部匯出（ZIP）",
   sendToAi: "傳送給 AI",
   sendCount: "傳送給 AI（{count}）",
-  aiHint: "「傳送給 AI」會傳送這裡顯示的筆記。想少傳一些，請先搜尋。",
+  aiHint: "「傳送給 AI」會傳送這裡顯示的筆記：筆記中所有輸入的文字合併成一個文字檔，另加手寫頁面和附件。想少傳一些，請先搜尋。",
   closeAll: "全部關閉",
   search: "搜尋筆記",
   noMatches: "沒有符合搜尋條件的筆記。",

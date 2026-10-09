@@ -41,7 +41,7 @@ export default {
   exportAll: "全部导出（ZIP）",
   sendToAi: "发送给 AI",
   sendCount: "发送给 AI（{count}）",
-  aiHint: "“发送给 AI”会发送此处显示的笔记。想少发一些，请先搜索。",
+  aiHint: "“发送给 AI”会发送此处显示的笔记：笔记中的所有输入文字合并为一个文本文件，另加手写页面和附件。想少发一些，请先搜索。",
   closeAll: "全部关闭",
   search: "搜索笔记",
   noMatches: "没有符合搜索条件的笔记。",

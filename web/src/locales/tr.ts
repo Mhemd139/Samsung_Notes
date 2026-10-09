@@ -42,7 +42,7 @@ export default {
   exportAll: "Tümünü dışa aktar (ZIP)",
   sendToAi: "Yapay zekâya gönder",
   sendCount: "Yapay zekâya gönder ({count})",
-  aiHint: "“Yapay zekâya gönder” yalnızca burada gösterilen notları gönderir. Daha az göndermek için arama yapın.",
+  aiHint: "“Yapay zekâya gönder” yalnızca burada gösterilen notları gönderir: notların tüm yazılı metni tek bir metin dosyasında, ayrıca el yazısı sayfaları ve ekli dosyaları da. Daha az göndermek için arama yapın.",
   closeAll: "Tümünü kapat",
   search: "Notlarda ara",
   noMatches: "Aramanızla eşleşen not yok.",

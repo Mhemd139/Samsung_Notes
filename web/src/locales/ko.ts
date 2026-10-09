@@ -42,7 +42,7 @@ export default {
   exportAll: "모두 내보내기 (ZIP)",
   sendToAi: "AI에게 보내기",
   sendCount: "AI에게 보내기 ({count})",
-  aiHint: "AI에게 보내기는 여기 보이는 노트를 보냅니다. 적게 보내려면 검색하세요.",
+  aiHint: "AI에게 보내기는 여기 보이는 노트를 보냅니다. 입력한 텍스트는 모두 하나의 텍스트 파일로, 손글씨 페이지와 첨부 파일도 함께 보냅니다. 적게 보내려면 검색하세요.",
   closeAll: "모두 닫기",
   search: "노트 검색",
   noMatches: "검색과 일치하는 노트가 없습니다.",
