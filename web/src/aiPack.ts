@@ -42,10 +42,14 @@ interface Attached {
   bytes: Uint8Array;
 }
 
+interface Photo extends Attached {
+  jpeg: PdfImage;
+}
+
 interface Gathered {
   note: LibraryNote;
   sheets: Sheet[];
-  photos: Attached[];
+  photos: Photo[];
   documents: Attached[];
   notSent: string[];
   pagesLeftOut: number[];
@@ -77,9 +81,9 @@ export function packText(entries: TextEntry[]): string {
 }
 
 export async function buildAiPack(notes: LibraryNote[], onNote: Progress): Promise<AiPack> {
-  const { gathered, full } = await gather(notes, onNote);
+  const gathered = await gather(notes, onNote);
   const images = gathered.reduce((sum, { sheets, photos }) => sum + sheets.length + photos.length, 0);
-  const documents = gathered.flatMap(({ note, documents }) => documents.map((document) => ({ note, document })));
+  const documents = gathered.flatMap(({ documents }) => documents);
   const plan = layout(images, documents.length);
   const base = notes.length === 1 ? noteFileName(notes[0]!) : `Notes ${isoDate(Date.now())}`;
   const used = new Set<string>();
@@ -87,7 +91,7 @@ export async function buildAiPack(notes: LibraryNote[], onNote: Progress): Promi
   const pdfName = plan.separate || !images ? "" : uniqueName(`${base} (images)`, ".pdf", used);
   const files: File[] = [];
   const pdfImages: PdfImage[] = [];
-  const sentDocuments = new Set(documents.slice(0, plan.documents).map(({ document }) => document));
+  const sentDocuments = new Set(documents.slice(0, plan.documents));
 
   const entries: TextEntry[] = [];
   for (const { note, sheets, photos, documents, notSent, pagesLeftOut } of gathered) {
@@ -110,18 +114,12 @@ export async function buildAiPack(notes: LibraryNote[], onNote: Progress): Promi
     const attached: string[] = [];
     const skipped = [...notSent];
     for (const photo of photos) {
-      const name = attachmentFileName(photo.name, used);
       if (plan.separate) {
+        const name = attachmentFileName(photo.name, used);
         files.push(new File([blobOf(photo.bytes, mimeType(name))], name, { type: mimeType(name) }));
         where.set(photo.name, `"${name}"`);
       } else {
-        try {
-          pdfImages.push(await photoToJpeg(blobOf(photo.bytes, mimeType(name))));
-        } catch (error) {
-          console.error(`Couldn't read ${photo.name} of “${note.title}”`, error);
-          skipped.push(`"${displayName(photo.name)}" (couldn't be read)`);
-          continue;
-        }
+        pdfImages.push(photo.jpeg);
         where.set(photo.name, `${displayName(photo.name)}, ${pdfPages(pdfImages.length, pdfImages.length, pdfName)}`);
       }
       attached.push(where.get(photo.name)!);
@@ -151,14 +149,14 @@ export async function buildAiPack(notes: LibraryNote[], onNote: Progress): Promi
     files.unshift(new File([blobOf(pdf, "application/pdf")], pdfName, { type: "application/pdf" }));
   }
   files.unshift(new File([packText(entries)], textName, { type: "text/plain" }));
-  return { files, incomplete: full || documents.length > plan.documents };
+  return { files, incomplete: entries.some(({ notSent }) => notSent.length > 0) };
 }
 
 const pdfPages = (first: number, last: number, pdf: string): string =>
   first === last ? `page ${first} of "${pdf}"` : `pages ${first}–${last} of "${pdf}"`;
 
 // Renders only pages with handwriting or drawings: typed pages are already in the text file.
-async function gather(notes: LibraryNote[], onNote: Progress): Promise<{ gathered: Gathered[]; full: boolean }> {
+async function gather(notes: LibraryNote[], onNote: Progress): Promise<Gathered[]> {
   let images = 0;
   let bytes = 0;
   let full = false;
@@ -194,22 +192,41 @@ async function gather(notes: LibraryNote[], onNote: Progress): Promise<{ gathere
           entry.pagesLeftOut.push(page);
         }
       }
-      for (const { name, size } of note.attachments) {
+      for (const { name } of note.attachments) {
         const label = `"${displayName(name)}"`;
-        const data = imageType(name) || isPdf(name) ? open.attachment(name) : undefined;
-        if (imageType(name) && data) {
-          if (fits(1, size)) entry.photos.push({ name, bytes: data });
-          else entry.notSent.push(`${label} ${TOO_MANY}`);
-        } else if (isPdf(name) && data) {
-          entry.documents.push({ name, bytes: data });
-        } else {
+        if (!imageType(name) && !isPdf(name)) {
           entry.notSent.push(`${label} (${audioType(name) ? "a voice recording" : "a file type Inkport doesn't send"})`);
+          continue;
         }
+        const data = open.attachment(name);
+        if (!data) {
+          entry.notSent.push(`${label} (couldn't be read)`);
+          continue;
+        }
+        if (isPdf(name)) {
+          entry.documents.push({ name, bytes: data });
+          continue;
+        }
+        if (full) {
+          entry.notSent.push(`${label} ${TOO_MANY}`);
+          continue;
+        }
+        // Converted up front: in a shared PDF the photo's JPEG, not the original, counts toward the size limit.
+        let jpeg: PdfImage;
+        try {
+          jpeg = await photoToJpeg(blobOf(data, mimeType(name)));
+        } catch (error) {
+          console.error(`Couldn't read ${name} of “${note.title}”`, error);
+          entry.notSent.push(`${label} (couldn't be read)`);
+          continue;
+        }
+        if (fits(1, Math.max(data.length, jpeg.jpeg.length))) entry.photos.push({ name, bytes: data, jpeg });
+        else entry.notSent.push(`${label} ${TOO_MANY}`);
       }
     } finally {
       open.close();
     }
     gathered.push(entry);
   }
-  return { gathered, full };
+  return gathered;
 }

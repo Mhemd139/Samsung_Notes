@@ -48,6 +48,7 @@ const ui = {
   noMatches: byId("no-matches"),
   libraryTitle: byId("library-title"),
   exportAll: byId<HTMLButtonElement>("export-all"),
+  closeAll: byId<HTMLButtonElement>("close-all"),
   sendAll: byId<HTMLButtonElement>("send-all"),
   sendAllLabel: byId("send-all-label"),
   aiHint: byId("ai-hint"),
@@ -73,6 +74,7 @@ const ui = {
 
 const state = {
   notes: [] as LibraryNote[],
+  visible: [] as LibraryNote[],
   current: undefined as CurrentNote | undefined,
   busy: false,
   opening: 0,
@@ -182,13 +184,10 @@ async function takeSharedFiles(): Promise<File[] | undefined> {
 
 // ── Library ─────────────────────────────────────────────────────────────
 
-function visibleNotes(): LibraryNote[] {
-  const query = ui.search.value.trim().toLocaleLowerCase();
-  return query ? state.notes.filter((note) => note.searchText.includes(query)) : state.notes;
-}
-
 function renderLibrary(): void {
-  const visible = visibleNotes();
+  const query = ui.search.value.trim().toLocaleLowerCase();
+  const visible = query ? state.notes.filter((note) => note.searchText.includes(query)) : state.notes;
+  state.visible = visible;
   ui.libraryTitle.textContent = t("libraryTitle", { count: state.notes.length });
   ui.grid.replaceChildren(...visible.map(card));
   ui.noMatches.hidden = visible.length > 0;
@@ -478,7 +477,9 @@ async function sendToAi(notes: LibraryNote[]): Promise<void> {
     return;
   }
   files.forEach((file) => downloadBlob(file, file.name));
-  toast(incomplete ? `${t("aiSaved", { count: files.length })} ${t("aiPartial")}` : t("aiSaved", { count: files.length }), { error: incomplete });
+  // Browsers ask before a page saves several files at once; refusing would silently drop all but the first.
+  const message = [t("aiSaved", { count: files.length }), ...(files.length > 1 ? [t("aiAllowDownloads")] : []), ...(incomplete ? [t("aiPartial")] : [])];
+  toast(message.join(" "), { error: incomplete, persist: files.length > 1 });
 }
 
 const sharesToApps = (): boolean => state.canShare && matchMedia("(pointer: coarse)").matches;
@@ -510,7 +511,7 @@ async function exportAll(): Promise<void> {
 // One long task at a time: a PDF or an export holds every page in memory, so two at once could exhaust a phone.
 async function runAction(action: () => Promise<void>): Promise<void> {
   if (state.busy) return;
-  const buttons = [ui.exportAll, ui.sendAll, ui.send, ui.pdf, ui.share];
+  const buttons = [ui.exportAll, ui.sendAll, ui.closeAll, ui.send, ui.pdf, ui.share];
   state.busy = true;
   buttons.forEach((button) => (button.disabled = true));
   try {
@@ -535,7 +536,7 @@ function announce(message: string, urgent: boolean): void {
   setTimeout(() => (region.textContent = message), 50);
 }
 
-function toast(message: string, options: { error?: boolean; action?: { label: string; run: () => void } } = {}): void {
+function toast(message: string, options: { error?: boolean; persist?: boolean; action?: { label: string; run: () => void } } = {}): void {
   clearTimeout(toastTimer);
   ui.toastText.textContent = message;
   ui.toast.classList.toggle("error", Boolean(options.error));
@@ -550,7 +551,7 @@ function toast(message: string, options: { error?: boolean; action?: { label: st
   }
   ui.toast.hidden = false;
   announce(message, Boolean(options.error));
-  if (!options.error && !options.action) toastTimer = window.setTimeout(hideToast, TOAST_MS);
+  if (!options.error && !options.action && !options.persist) toastTimer = window.setTimeout(hideToast, TOAST_MS);
 }
 
 function progress(message: string, spoken: boolean): void {
@@ -585,9 +586,9 @@ function wireEvents(): void {
     void addFiles(files);
   });
   ui.exportAll.addEventListener("click", () => void runAction(exportAll));
-  ui.sendAll.addEventListener("click", () => void runAction(() => sendToAi(visibleNotes())));
+  ui.sendAll.addEventListener("click", () => void runAction(() => sendToAi(state.visible)));
   ui.send.addEventListener("click", () => void runAction(() => sendToAi([state.current!.note])));
-  byId("close-all").addEventListener("click", closeAll);
+  ui.closeAll.addEventListener("click", closeAll);
   byId("back").addEventListener("click", () => (history.state?.note ? history.back() : backToLibrary()));
   ui.share.addEventListener("click", () => void runAction(sharePdf));
   ui.pdf.addEventListener("click", () => void runAction(downloadPdf));
