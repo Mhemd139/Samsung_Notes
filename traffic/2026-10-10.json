@@ -1,0 +1,282 @@
+{
+  "views": {
+    "count": 31,
+    "uniques": 13,
+    "views": [
+      {
+        "timestamp": "2026-09-26T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-09-27T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-09-28T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-09-29T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-09-30T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-10-01T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-10-02T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-10-03T00:00:00Z",
+        "count": 2,
+        "uniques": 2
+      },
+      {
+        "timestamp": "2026-10-04T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-10-05T00:00:00Z",
+        "count": 7,
+        "uniques": 3
+      },
+      {
+        "timestamp": "2026-10-06T00:00:00Z",
+        "count": 5,
+        "uniques": 2
+      },
+      {
+        "timestamp": "2026-10-07T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-10-08T00:00:00Z",
+        "count": 4,
+        "uniques": 4
+      },
+      {
+        "timestamp": "2026-10-09T00:00:00Z",
+        "count": 13,
+        "uniques": 3
+      }
+    ]
+  },
+  "clones": {
+    "count": 527,
+    "uniques": 160,
+    "clones": [
+      {
+        "timestamp": "2026-09-26T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-09-27T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-09-28T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-09-29T00:00:00Z",
+        "count": 0,
+        "uniques": 0
+      },
+      {
+        "timestamp": "2026-09-30T00:00:00Z",
+        "count": 69,
+        "uniques": 26
+      },
+      {
+        "timestamp": "2026-10-01T00:00:00Z",
+        "count": 236,
+        "uniques": 60
+      },
+      {
+        "timestamp": "2026-10-02T00:00:00Z",
+        "count": 46,
+        "uniques": 22
+      },
+      {
+        "timestamp": "2026-10-03T00:00:00Z",
+        "count": 33,
+        "uniques": 14
+      },
+      {
+        "timestamp": "2026-10-04T00:00:00Z",
+        "count": 3,
+        "uniques": 3
+      },
+      {
+        "timestamp": "2026-10-05T00:00:00Z",
+        "count": 1,
+        "uniques": 1
+      },
+      {
+        "timestamp": "2026-10-06T00:00:00Z",
+        "count": 2,
+        "uniques": 2
+      },
+      {
+        "timestamp": "2026-10-07T00:00:00Z",
+        "count": 1,
+        "uniques": 1
+      },
+      {
+        "timestamp": "2026-10-08T00:00:00Z",
+        "count": 32,
+        "uniques": 6
+      },
+      {
+        "timestamp": "2026-10-09T00:00:00Z",
+        "count": 104,
+        "uniques": 41
+      }
+    ]
+  },
+  "referrers": [
+    {
+      "referrer": "github.com",
+      "count": 3,
+      "uniques": 3
+    },
+    {
+      "referrer": "linkedin.com",
+      "count": 3,
+      "uniques": 2
+    },
+    {
+      "referrer": "com.linkedin.android",
+      "count": 2,
+      "uniques": 2
+    },
+    {
+      "referrer": "mhemd139.github.io",
+      "count": 2,
+      "uniques": 1
+    },
+    {
+      "referrer": "com.reddit.frontpage",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "referrer": "reddit.com",
+      "count": 1,
+      "uniques": 1
+    }
+  ],
+  "paths": [
+    {
+      "path": "/Mhemd139/Samsung_Notes",
+      "title": "Overview",
+      "count": 17,
+      "uniques": 13
+    },
+    {
+      "path": "/Mhemd139/Samsung_Notes/tree/main/src",
+      "title": "/tree/main/src",
+      "count": 3,
+      "uniques": 3
+    },
+    {
+      "path": "/Mhemd139/Samsung_Notes/pulse",
+      "title": "/pulse",
+      "count": 2,
+      "uniques": 1
+    },
+    {
+      "path": "/Mhemd139/Samsung_Notes/blob/main/skills/samsung-notes/SKILL.md",
+      "title": "/blob/main/skills/samsung-notes/SKILL.md",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "path": "/Mhemd139/Samsung_Notes/blob/main/src/catalog.ts",
+      "title": "/blob/main/src/catalog.ts",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "path": "/Mhemd139/Samsung_Notes/blob/main/src/pdf.ts",
+      "title": "/blob/main/src/pdf.ts",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "path": "/Mhemd139/Samsung_Notes/graphs/commit-activity",
+      "title": "/graphs/commit-activity",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "path": "/Mhemd139/Samsung_Notes/tree/main/.claude-plugin",
+      "title": "/tree/main/.claude-plugin",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "path": "/Mhemd139/Samsung_Notes/tree/main/assets",
+      "title": "/tree/main/assets",
+      "count": 1,
+      "uniques": 1
+    },
+    {
+      "path": "/Mhemd139/Samsung_Notes/tree/main/scripts",
+      "title": "/tree/main/scripts",
+      "count": 1,
+      "uniques": 1
+    }
+  ],
+  "repo": {
+    "forks": 0,
+    "open_issues": 0,
+    "stars": 3,
+    "watchers": 0
+  },
+  "mcpb": [
+    {
+      "downloads": 2,
+      "tag": "v0.1.4"
+    },
+    {
+      "downloads": 6,
+      "tag": "v0.1.3"
+    },
+    {
+      "downloads": 1,
+      "tag": "v0.1.2"
+    },
+    {
+      "downloads": 1,
+      "tag": "v0.1.1"
+    },
+    {
+      "downloads": 4,
+      "tag": "v0.1.0"
+    }
+  ],
+  "npm": {
+    "downloads": 4,
+    "start": "2026-10-08",
+    "end": "2026-10-08",
+    "package": "samsung-notes-mcp"
+  }
+}
