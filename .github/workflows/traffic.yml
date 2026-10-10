@@ -1,5 +1,5 @@
 name: Traffic
-# GitHub keeps traffic for 14 days only. This saves a daily snapshot to the `stats` branch, so the history stays.
+# GitHub keeps traffic for 14 days only. This saves a daily snapshot to the private Mhemd139/traffic repo, so the history stays.
 on:
   schedule:
     - cron: "17 3 * * *"
@@ -8,15 +8,14 @@ permissions: {}
 jobs:
   save:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: stats
+          repository: Mhemd139/traffic
+          token: ${{ secrets.TRAFFIC_TOKEN }}
       - name: Save today's numbers
         env:
-          # A fine-grained token with "Administration: read" on this repo; the traffic API needs it.
+          # A fine-grained token with "Administration: read" on this repo (the traffic API needs it) and "Contents: read and write" on Mhemd139/traffic.
           GH_TOKEN: ${{ secrets.TRAFFIC_TOKEN }}
           REPO: ${{ github.repository }}
         run: |
