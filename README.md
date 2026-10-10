@@ -23,8 +23,8 @@
 </p>
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/inkport-dark.webp">
-  <img src="docs/inkport-light.webp" alt="Inkport in a browser: a library of Samsung Notes with page previews, and a handwritten page on a phone">
+  <source media="(prefers-color-scheme: dark)" srcset="assets/inkport-dark.webp">
+  <img src="assets/inkport-light.webp" alt="Inkport in a browser: a library of Samsung Notes with page previews, and a handwritten page on a phone">
 </picture>
 
 ## Inkport: your notes in any browser
