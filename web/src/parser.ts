@@ -1,16 +1,11 @@
-import * as bindings from "@twango/sdocx/sdocx_bg.js";
+import init, { DocumentSession } from "@twango/sdocx";
 import wasmUrl from "@twango/sdocx/sdocx_bg.wasm?url";
 
 let ready: Promise<void> | undefined;
 
 export function loadParser(): Promise<void> {
-  ready ??= WebAssembly.instantiateStreaming(fetch(wasmUrl), {
-    "./sdocx_bg.js": bindings as unknown as WebAssembly.ModuleImports,
-  }).then(
-    ({ instance }) => {
-      bindings.__wbg_set_wasm(instance.exports);
-      (instance.exports.__wbindgen_start as (() => void) | undefined)?.();
-    },
+  ready ??= init({ module_or_path: wasmUrl }).then(
+    () => undefined,
     (error: unknown) => {
       ready = undefined;
       throw error;
@@ -19,6 +14,6 @@ export function loadParser(): Promise<void> {
   return ready;
 }
 
-export type Session = bindings.DocumentSession;
+export type Session = DocumentSession;
 
-export const openSession = (bytes: Uint8Array): Session => new bindings.DocumentSession(bytes);
+export const openSession = (bytes: Uint8Array): Session => new DocumentSession(bytes);

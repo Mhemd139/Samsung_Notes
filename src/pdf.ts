@@ -1,6 +1,7 @@
 import { PDFiumLibrary, type PDFiumDocument, type PDFiumPage } from "@hyzyla/pdfium";
 import { describeError, NoteError } from "./errors.js";
 import { attachmentParts, encodeJpeg, IMAGE_WIDTH, imageForClaude } from "./images.js";
+import type { PdfPageRenderer } from "./core/note.js";
 import { partBand } from "./core/svg.js";
 
 const MIN_TEXT_CHARS = 20;
@@ -47,6 +48,23 @@ export async function readPdf(
     document.destroy();
   }
 }
+
+export const renderPdfPage: PdfPageRenderer = async (pdf, pageIndex, pixelWidth) => {
+  const pdfium = await (library ??= PDFiumLibrary.init());
+  const document = await pdfium.loadDocument(pdf);
+  try {
+    const page = document.getPage(pageIndex);
+    const { originalWidth, originalHeight } = page.getOriginalSize();
+    const { data } = await page.render({
+      width: pixelWidth,
+      height: Math.round((pixelWidth * originalHeight) / originalWidth),
+      render: async (bitmap: { width: number; height: number; data: Uint8Array }) => encodeJpeg(bitmap.width, bitmap.height, bitmap.data),
+    });
+    return `data:image/jpeg;base64,${Buffer.from(data).toString("base64")}`;
+  } finally {
+    document.destroy();
+  }
+};
 
 async function renderJpeg(page: PDFiumPage, number: number, part: number): Promise<{ image: Uint8Array; parts: number }> {
   const { originalWidth, originalHeight } = page.getOriginalSize();

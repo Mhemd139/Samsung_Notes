@@ -37,7 +37,7 @@ async function pdfOf(note: LibraryNote, open: OpenNote, onPage?: Progress): Prom
 }
 
 export async function pageSheets(note: LibraryNote, open: OpenNote, index: number): Promise<PdfImage[]> {
-  const svg = open.page(index);
+  const svg = await open.page(index);
   const box = viewBox(svg);
   if (!box) throw new Error(`Page ${index + 1} of “${note.title}” has no size.`);
   const sheets: PdfImage[] = [];

@@ -6,12 +6,18 @@ The connector (`samsung-notes-mcp`) follows [semantic versioning](https://semver
 
 ### Inkport
 
+- Notes made from a PDF (a PDF imported into Samsung Notes, or one written on) show their PDF pages with the handwriting on top, in the page view, the library and the PDF export. They used to come out blank.
 - **Send to AI:** one tap shares a note, or every note shown in the library, with Claude, ChatGPT or Gemini. The AI gets one text file with all the typed text and dates, images of the handwritten pages, and the attached photos and PDFs, within 10 files per message. On a computer the files download instead.
 - English note titles no longer scramble in Hebrew, Arabic or Persian.
 - **Try the samples** opens Inkport with four public test notes.
 - First release of Inkport: opens `.sdocx` files, folders and zips on any device, with a library, page view, text and files tabs, a PDF per note, and **Export all** to Markdown + PDF + attachments. It works offline, installs as an app, receives notes from Android's share menu, and comes in 21 languages. Nothing is uploaded.
 
-### Connector 0.1.4 (not tagged yet)
+### Connector (next release)
+
+- `get_page_image` shows the PDF pages of notes made from a PDF, with the handwriting on top. They used to come out blank.
+- Parser updated to `@twango/sdocx` 1.1.0, which loads in Node without a hand-written WASM loader.
+
+### Connector 0.1.4 (9 Oct 2026)
 
 - Install as a Claude Code plugin: `/plugin install samsung-notes --marketplace Mhemd139/Samsung_Notes`. The plugin includes a skill that tells the agent which tool fits which task.
 - Ready for the official MCP Registry as `io.github.Mhemd139/samsung-notes`; the release workflow publishes it there and to npm.

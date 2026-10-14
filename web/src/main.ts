@@ -325,16 +325,23 @@ function paintVisiblePages(entries: IntersectionObserverEntry[]): void {
     if (!entry.isIntersecting) continue;
     const figure = entry.target as HTMLElement;
     current.observer.unobserve(figure);
-    try {
-      const url = svgUrl(current.open.page(Number(figure.dataset.index)));
-      current.urls.push(url);
-      figure.querySelector("img")!.src = url;
-      figure.classList.add("loaded");
-    } catch (error) {
-      console.error(`Couldn't draw page ${Number(figure.dataset.index) + 1}`, error);
-      figure.classList.add("failed");
-      figure.querySelector("figcaption")!.textContent = t("pageFailed");
-    }
+    void paintPage(current, figure);
+  }
+}
+
+async function paintPage(current: CurrentNote, figure: HTMLElement): Promise<void> {
+  try {
+    const svg = await current.open.page(Number(figure.dataset.index));
+    // The note was closed while a PDF page was drawing.
+    if (state.current !== current) return;
+    const url = svgUrl(svg);
+    current.urls.push(url);
+    figure.querySelector("img")!.src = url;
+    figure.classList.add("loaded");
+  } catch (error) {
+    console.error(`Couldn't draw page ${Number(figure.dataset.index) + 1}`, error);
+    figure.classList.add("failed");
+    figure.querySelector("figcaption")!.textContent = t("pageFailed");
   }
 }
 

@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import * as bindings from "@twango/sdocx/sdocx_bg.js";
+import { DocumentSession, initSync } from "@twango/sdocx";
 import { readNoteDetails, readPageSvg, type NoteDetails, type RenderedPage } from "./core/note.js";
 
 export type { NoteDetails, RenderedPage, TextSpan } from "./core/note.js";
@@ -8,18 +8,13 @@ let loaded = false;
 
 function ensureLoaded(): void {
   if (loaded) return;
-  const wasm = readFileSync(new URL(import.meta.resolve("@twango/sdocx/sdocx_bg.wasm")));
-  const instance = new WebAssembly.Instance(new WebAssembly.Module(wasm), {
-    "./sdocx_bg.js": bindings as unknown as WebAssembly.ModuleImports,
-  });
-  bindings.__wbg_set_wasm(instance.exports);
-  (instance.exports.__wbindgen_start as (() => void) | undefined)?.();
+  initSync({ module: readFileSync(new URL(import.meta.resolve("@twango/sdocx/sdocx_bg.wasm"))) });
   loaded = true;
 }
 
-function withSession<T>(bytes: Uint8Array, use: (session: bindings.DocumentSession) => T): T {
+function withSession<T>(bytes: Uint8Array, use: (session: DocumentSession) => T): T {
   ensureLoaded();
-  const session = new bindings.DocumentSession(bytes);
+  const session = new DocumentSession(bytes);
   try {
     return use(session);
   } finally {

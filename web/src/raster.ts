@@ -1,6 +1,6 @@
 import type { PdfImage } from "../../src/core/pdfWriter";
 
-const SHEET_PIXEL_WIDTH = 1400;
+export const SHEET_PIXEL_WIDTH = 1400;
 const PHOTO_PIXEL_SIDE = 2400;
 const MAX_CANVAS_PIXELS = 16_000_000;
 const JPEG_QUALITY = 0.82;

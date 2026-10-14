@@ -4,11 +4,12 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 import { NO_FOLDER, type Catalog, type ListResult, type NoteEntry, type Overview } from "./catalog.js";
 import { describeError, NoteError } from "./errors.js";
-import { imageForClaude, imageParts, MAX_IMAGE_BYTES, renderPage } from "./images.js";
-import { PDF_BUDGET_BYTES, readPdf } from "./pdf.js";
+import { IMAGE_WIDTH, imageForClaude, imageParts, MAX_IMAGE_BYTES, renderPage } from "./images.js";
+import { PDF_BUDGET_BYTES, readPdf, renderPdfPage } from "./pdf.js";
 import { fileNameFor, openSaveFolder, subfolders } from "./save.js";
 import { renderPageSvg } from "./sdocx.js";
 import type { AttachmentInfo } from "./sources/types.js";
+import { drawPaper } from "./core/note.js";
 import { cropToInk, pageParts } from "./core/svg.js";
 import { cutText, formatDate, formatDateTime, formatPageRanges } from "./core/text.js";
 
@@ -199,8 +200,9 @@ export function createServer(catalog: Catalog, saveRoot: () => string): McpServe
         if (page > entry.pageCount) {
           throw new NoteError(`“${entry.title}” has ${entry.pageCount} page${entry.pageCount === 1 ? "" : "s"}.`);
         }
-        const rendered = renderPageSvg(await catalog.ref(id)!.fullBytes(), page - 1);
-        const svg = cropToInk(rendered.svg, rendered.inkBottom);
+        const bytes = await catalog.ref(id)!.fullBytes();
+        const rendered = renderPageSvg(bytes, page - 1);
+        const svg = cropToInk(await drawPaper(rendered, bytes, IMAGE_WIDTH, renderPdfPage), rendered.inkBottom);
         const parts = pageParts(svg);
         if (part > parts) throw new NoteError(`Page ${page} of “${entry.title}” has ${parts} part${parts === 1 ? "" : "s"}.`);
         const fitted = imageForClaude(renderPage(svg, part), "image/png");

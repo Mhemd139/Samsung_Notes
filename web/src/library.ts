@@ -1,9 +1,10 @@
-import { readNoteDetails, readPageSvg, type NoteSession } from "../../src/core/note";
+import { drawPaper, readNoteDetails, readPageSvg, type NoteSession } from "../../src/core/note";
 import { sheetBands, viewBox, withBand, cropToInk } from "../../src/core/svg";
 import { buildNoteText, noteTitle } from "../../src/core/text";
 import { listZipAttachments, readZipAttachment } from "../../src/core/zip";
-import { loadParser, openSession } from "./parser";
-import { svgToJpeg } from "./raster";
+import { loadParser, openSession, type Session } from "./parser";
+import { renderPdfPage } from "./pdfPages";
+import { SHEET_PIXEL_WIDTH, svgToJpeg } from "./raster";
 
 const THUMBNAIL_WIDTH = 360;
 
@@ -29,7 +30,7 @@ export interface LibraryNote {
 
 export interface OpenNote {
   pageCount: number;
-  page(index: number): string;
+  page(index: number): Promise<string>;
   attachment(name: string): Uint8Array | undefined;
   close(): void;
 }
@@ -39,7 +40,8 @@ let nextId = 1;
 export async function readNote(file: File): Promise<LibraryNote> {
   await loadParser();
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const session = openSession(bytes);
+  const raw = openSession(bytes);
+  const session = cachedSession(raw);
   try {
     const details = readNoteDetails(session, bytes);
     const attachments = listZipAttachments(bytes);
@@ -56,33 +58,38 @@ export async function readNote(file: File): Promise<LibraryNote> {
       pageCount: details.pageCount,
       inkPages: details.inkPages,
       attachments,
-      thumbnail: details.pageCount ? await thumbnailOf(session.render_svg(0, "light")) : undefined,
+      thumbnail: details.pageCount ? await thumbnailOf(session, bytes) : undefined,
       searchText: `${title}\n${text}`.toLocaleLowerCase(),
     };
   } finally {
-    session.free();
+    raw.free();
   }
 }
 
-// Keeps one parsed note open while it is on screen; inspection() is costly, so it runs once.
+// Keeps one parsed note open while it is on screen.
 export async function openNote(note: LibraryNote): Promise<OpenNote> {
   await loadParser();
   const bytes = new Uint8Array(await note.file.arrayBuffer());
   const raw = openSession(bytes);
-  let inspection: unknown;
-  const session: NoteSession = {
-    page_count: raw.page_count,
-    inspection: () => (inspection ??= raw.inspection()),
-    render_svg: (index, mode) => raw.render_svg(index, mode),
-  };
+  const session = cachedSession(raw);
   return {
     pageCount: raw.page_count,
-    page: (index) => {
-      const { svg, inkBottom } = readPageSvg(session, index);
-      return cropToInk(svg, inkBottom);
+    page: async (index) => {
+      const page = readPageSvg(session, index);
+      return cropToInk(await drawPaper(page, bytes, SHEET_PIXEL_WIDTH, renderPdfPage), page.inkBottom);
     },
     attachment: (name) => readZipAttachment(bytes, name),
     close: () => raw.free(),
+  };
+}
+
+// inspection() is costly, so it runs once per parsed note.
+function cachedSession(raw: Session): NoteSession {
+  let inspection: unknown;
+  return {
+    page_count: raw.page_count,
+    inspection: () => (inspection ??= raw.inspection()),
+    render_svg: (index, mode) => raw.render_svg(index, mode),
   };
 }
 
@@ -92,11 +99,13 @@ export const svgUrl = (svg: string): string => URL.createObjectURL(new Blob([svg
 export const blobOf = (bytes: Uint8Array, type: string): Blob => new Blob([bytes as BlobPart], { type });
 
 // A small JPEG of the first sheet: a whole-page SVG per card would hold megabytes of strokes for every note.
-async function thumbnailOf(svg: string): Promise<string | undefined> {
-  const box = viewBox(svg);
-  if (!box) return undefined;
-  const [first] = sheetBands(box.width, box.height);
+async function thumbnailOf(session: NoteSession, bytes: Uint8Array): Promise<string | undefined> {
   try {
+    const page = readPageSvg(session, 0);
+    const box = viewBox(page.svg);
+    if (!box) return undefined;
+    const [first] = sheetBands(box.width, box.height);
+    const svg = await drawPaper(page, bytes, THUMBNAIL_WIDTH, renderPdfPage);
     const { jpeg } = await svgToJpeg(withBand(svg, box, box.y + first!.top, first!.height), box.width, first!.height, THUMBNAIL_WIDTH);
     return URL.createObjectURL(blobOf(jpeg, "image/jpeg"));
   } catch (error) {
