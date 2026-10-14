@@ -12,7 +12,7 @@ The connector (`samsung-notes-mcp`) follows [semantic versioning](https://semver
 - **Try the samples** opens Inkport with four public test notes.
 - First release of Inkport: opens `.sdocx` files, folders and zips on any device, with a library, page view, text and files tabs, a PDF per note, and **Export all** to Markdown + PDF + attachments. It works offline, installs as an app, receives notes from Android's share menu, and comes in 21 languages. Nothing is uploaded.
 
-### Connector (next release)
+### Connector 0.1.5 (14 Oct 2026)
 
 - `get_page_image` shows the PDF pages of notes made from a PDF, with the handwriting on top. They used to come out blank.
 - Parser updated to `@twango/sdocx` 1.1.0, which loads in Node without a hand-written WASM loader.

@@ -3,7 +3,7 @@
   "name": "io.github.Mhemd139/samsung-notes",
   "title": "Samsung Notes",
   "description": "Read Samsung Notes: typed text, tables, handwritten pages, photos and PDFs. Never changes a note.",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "repository": { "url": "https://github.com/Mhemd139/Samsung_Notes", "source": "github" },
   "websiteUrl": "https://github.com/Mhemd139/Samsung_Notes",
   "icons": [
@@ -17,7 +17,7 @@
     {
       "registryType": "npm",
       "identifier": "samsung-notes-mcp",
-      "version": "0.1.4",
+      "version": "0.1.5",
       "transport": { "type": "stdio" }
     }
   ]
